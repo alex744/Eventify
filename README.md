@@ -7,7 +7,7 @@ API для управления событиями (CRUD операции). По
 ## Запуск проекта
 1. Клонируйте репозиторий:   
    git clone https://github.com/alex744/Eventify.git
-   cd Eventify
+   cd Eventify\src
 
 2. Восстановите зависимости:
    dotnet restore
@@ -26,7 +26,7 @@ API для управления событиями (CRUD операции). По
    http://localhost:5000/swagger.
    
 ## Краткая документация API
-Все эндпоинты находятся по базовому пути /api/events
+Все эндпоинты находятся по базовому пути /events
 
 Модель Event
 {
@@ -39,16 +39,16 @@ API для управления событиями (CRUD операции). По
 Валидация: endAt должен быть позже startAt
    
 1. Получить все события
-   GET /api/events
+   GET /events
    Ответ: 200 OK с массивом событий
    
 2. Получить событие по ID
-   GET /api/events/{id}
+   GET /events/{id}
    Параметры: id (Guid)
    Ответ: 200 OK с объектом события или 404 Not Found
    
 3. Создать событие
-   POST /api/events
+   POST /events
    Тело запроса:
    {
      "title": "Конференция",
@@ -56,16 +56,16 @@ API для управления событиями (CRUD операции). По
 	 "startAt": "2025-06-01T10:00:00Z",
 	 "endAt": "2025-06-01T18:00:00Z"
    }
-   Ответ: 201 Created
+   Ответ: 201 Created и Location на созданный ресурс
    
 4. Обновить событие
-   PUT /api/events/{id}
+   PUT /events/{id}
    Параметры: id (Guid)
    Тело запроса: полный объект события (без id)
    Ответ: 204 No Content при успехе, 400 Bad Request или 404 Not Found
 
 5. Удалить событие
-   DELETE /api/events/{id}
+   DELETE /events/{id}
    Параметры: id (Guid)
    Ответ: 204 No Content или 404 Not Found
    
