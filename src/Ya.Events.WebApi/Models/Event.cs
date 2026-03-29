@@ -11,7 +11,7 @@ public class Event
         set
         {
             if (string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException("Название события не может быть пустым.");
+                throw new ArgumentException("Название события обязательно.", nameof(Title));
             _title = value;
         }
     }
@@ -26,7 +26,7 @@ public class Event
         set
         {
             if (value <= StartAt)
-                throw new ArgumentException("Дата окончания должна быть позже даты начала.");
+                throw new ArgumentException("Дата окончания должна быть позже даты начала.", nameof(EndAt));
             _endAt = value;
         }
     }

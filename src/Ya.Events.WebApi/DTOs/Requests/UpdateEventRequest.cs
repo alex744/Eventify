@@ -3,7 +3,7 @@ using Ya.Events.WebApi.Attributes;
 
 namespace Ya.Events.WebApi.DTOs.Requests;
 
-public record CreateEventRequest
+public record UpdateEventRequest
 {
     [Required(ErrorMessage = "Название события обязательно.")]
     public required string Title { get; set; }

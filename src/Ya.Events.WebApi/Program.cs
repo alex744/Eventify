@@ -1,5 +1,8 @@
+using Ya.Events.WebApi.Extensions;
 using Ya.Events.WebApi.Interfaces;
+using Ya.Events.WebApi.Models;
 using Ya.Events.WebApi.Services;
+using Ya.Events.WebApi.Storages;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,7 @@ builder.Services.AddSwaggerGen();
 
 // Регитрация зависимостей
 builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddSingleton<IStorage<Event>>(sp => new InMemoryStorage<Event>(new List<Event>()));
 
 var app = builder.Build();
 
@@ -20,6 +24,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Конфигурация конвейера HTTP-запросов.
+app.UseGlobalExceptionHandling();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
