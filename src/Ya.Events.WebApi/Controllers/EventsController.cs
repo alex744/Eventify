@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using System.Net;
+using System.ComponentModel.DataAnnotations;
 using Ya.Events.WebApi.DTOs.Requests;
 using Ya.Events.WebApi.DTOs.Responses;
 using Ya.Events.WebApi.Interfaces;
@@ -21,13 +21,33 @@ public class EventsController : ControllerBase
     /// <summary>
     /// Получить список всех событий
     /// GET /events
-    /// </summary>    
+    /// </summary>
+    /// <param name="title">Поиск по названию</param>
+    /// <param name="from">События, которые начинаются не раньше указанной даты</param>
+    /// <param name="to">События, которые заканчиваются не позже указанной даты</param>    
     [HttpGet]
-    public ActionResult<EventResponse[]> GetAll()
+    //[Range(nameof(pageSize),1,100,"")]
+    public ActionResult<PaginatedResult<EventResponse>> GetAll(
+        [FromQuery] string? title = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery, Range(1, int.MaxValue)] int page = 1,
+        [FromQuery, Range(1, 100)] int pageSize = 10)
     {
-        return _eventService.GetAll()
+        // Получение данных из сервиса
+        var paginatedResult = _eventService.GetAll(title, from, to, page, pageSize);
+
+        // Маппинг доменных объектов в DTO ответа
+        var items = paginatedResult.Items
             .Select(e => e.ToResponse())
-            .ToArray();
+            .ToList();
+
+        // Формирование ответа с использованием данных из сервиса
+        return new PaginatedResult<EventResponse>(
+            items,
+            paginatedResult.TotalCount,
+            paginatedResult.CurrentPage,
+            paginatedResult.PageSize);
     }
 
     /// <summary>
@@ -37,14 +57,17 @@ public class EventsController : ControllerBase
     [HttpGet("{id}")]
     public ActionResult<EventResponse> GetById(Guid id)
     {
-        try
+        var entity = _eventService.GetById(id);
+        if (entity is null)
         {
-            return _eventService.GetById(id).ToResponse();
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Detail = $"Событие с идентификатором '{id}' не найдено."
+            });
         }
-        catch
-        {
-            return NotFound();
-        }
+
+        return entity.ToResponse();
     }
 
     /// <summary>
@@ -52,15 +75,10 @@ public class EventsController : ControllerBase
     /// POST /events
     /// </summary>    
     [HttpPost]
-    public IActionResult Create([FromBody] CreateEventRequest request)
+    public ActionResult<EventResponse> Create([FromBody] CreateEventRequest request)
     {
-        var @event = _eventService.Create(
-            request.Title,
-            request.StartAt!.Value,
-            request.EndAt!.Value,
-            request.Description);
-
-        return CreatedAtAction(nameof(GetById), new { @event.Id }, @event);
+        var created = _eventService.Create(request.ToEvent());
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created.ToResponse());
     }
 
     /// <summary>
@@ -68,23 +86,10 @@ public class EventsController : ControllerBase
     /// PUT /events/{id}
     /// </summary>    
     [HttpPut("{id}")]
-    public IActionResult Update(Guid id, [FromBody] CreateEventRequest request)
+    public ActionResult<EventResponse> Update(Guid id, [FromBody] UpdateEventRequest request)
     {
-        try
-        {
-            _eventService.Update(
-                id,
-                request.Title,
-                request.StartAt!.Value,
-                request.EndAt!.Value,
-                request.Description);
-
-            return NoContent();
-        }
-        catch
-        {
-            return NotFound();
-        }
+        var updated = _eventService.Update(id, request.ToEvent());
+        return updated.ToResponse();
     }
 
     /// <summary>
@@ -94,14 +99,7 @@ public class EventsController : ControllerBase
     [HttpDelete("{id}")]
     public IActionResult Delete(Guid id)
     {
-        try
-        {
-            _eventService.Delete(id);
-            return NoContent();
-        }
-        catch
-        {
-            return NotFound();
-        }
+        _eventService.Delete(id);
+        return NoContent();
     }
 }
