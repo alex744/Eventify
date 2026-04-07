@@ -304,6 +304,43 @@ public partial class EventServiceTests
     }
 
     /// <summary>
+    /// Проверяет, что при корректном диапазоне дат (from меньше или равно to) метод GetAll не выбрасывает исключений
+    /// и возвращает результат (даже если он пуст).
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Success")]
+    public void GetAll_WhenFromLessThanOrEqualToTo_DoesNotThrow()
+    {
+        // Arrange        
+        var from = new DateTime(2026, 1, 1);
+        var to = new DateTime(2026, 12, 31);
+
+        // Act
+        var result = _service.GetAll(from: from, to: to);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.TotalCount);
+    }
+
+    /// <summary>
+    /// Проверяет, что при передаче значения from больше, чем to, метод GetAll выбрасывает исключение ArgumentException
+    /// с корректным сообщением об ошибке.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Failure")]
+    public void GetAll_WhenFromGreaterThanTo_ThrowsArgumentException()
+    {
+        // Arrange        
+        var from = new DateTime(2025, 12, 31);
+        var to = new DateTime(2025, 1, 1);
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => _service.GetAll(from: from, to: to));
+        Assert.Equal("Дата начала (from) не может быть позже даты окончания (to).", exception.Message);
+    }
+
+    /// <summary>
     /// Проверяет, что попытка получить событие с несуществующим идентификатором возвращает null.
     /// </summary>
     [Fact]
@@ -337,6 +374,21 @@ public partial class EventServiceTests
 
         // Act & Assert
         var exception = Assert.Throws<NotFoundException>(() => _service.Update(nonExistentId, expectedEvent));
+        Assert.Equal($"Событие с идентификатором '{nonExistentId}' не найдено.", exception.Message);
+    }
+
+    /// <summary>
+    /// Проверяет, что попытка удалить событие с несуществующим идентификатором вызывает исключение NotFoundException.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Failure")]
+    public void Delete_NonExistentId_ThrowsNotFoundException()
+    {
+        // Arrange
+        var nonExistentId = Guid.NewGuid();
+
+        // Act & Assert
+        var exception = Assert.Throws<NotFoundException>(() => _service.Delete(nonExistentId));
         Assert.Equal($"Событие с идентификатором '{nonExistentId}' не найдено.", exception.Message);
     }
 }
