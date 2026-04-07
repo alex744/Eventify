@@ -18,12 +18,26 @@ public class EndAfterStartAttribute : ValidationAttribute
             return ValidationResult.Success;
         }
 
-        if (validationContext.ObjectInstance is CreateEventRequest model)
+        var model = validationContext.ObjectInstance;
+        DateTime? startAt = null, endAt = value as DateTime?;
+
+        switch (model)
         {
-            if (model.EndAt <= model.StartAt)
-            {
-                return new ValidationResult(ErrorMessage, [nameof(CreateEventRequest.EndAt)]);
-            }
+            case CreateEventRequest create:
+                startAt = create.StartAt;
+                endAt ??= create.EndAt;
+                break;
+            case UpdateEventRequest update:
+                startAt = update.StartAt;
+                endAt ??= update.EndAt;
+                break;
+            default:
+                return ValidationResult.Success;
+        }
+
+        if (startAt.HasValue && endAt.HasValue && endAt <= startAt)
+        {
+            return new ValidationResult(ErrorMessage, [nameof(CreateEventRequest.EndAt)]);
         }
 
         return ValidationResult.Success;

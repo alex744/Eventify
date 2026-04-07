@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="Ya.Events.WebApi.Tests/Ya.Events.WebApi.Tests.csproj" Id="26c1b9c4-cfd1-4ca3-aa2e-4aab2fdb3da4" />
   <Project Path="Ya.Events.WebApi/Ya.Events.WebApi.csproj" Id="585bb791-9126-45c7-b344-c9049aff1c38" />
 </Solution>

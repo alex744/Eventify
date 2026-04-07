@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using Ya.Events.WebApi.DTOs.Responses;
+using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
 
@@ -6,47 +7,75 @@ namespace Ya.Events.WebApi.Services;
 
 public class EventService : IEventService
 {
-    private static readonly List<Event> _events = [];
+    private readonly List<Event> _events;
 
-    public ReadOnlyCollection<Event> GetAll()
+    public EventService(IStorage<Event> storage)
     {
-        return _events.AsReadOnly();
+        _events = storage.Collection;
     }
 
-    public Event GetById(Guid id)
+    public PaginatedResult<Event> GetAll(
+        string? title = null,
+        DateTime? from = null,
+        DateTime? to = null,
+        int page = 1,
+        int pageSize = 10)
     {
-        var existing = _events.Find(e => e.Id == id);
+        var query = _events.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            query = query.Where(e => e.Title.Contains(title, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (from.HasValue)
+        {
+            query = query.Where(e => e.StartAt >= from);
+        }
+
+        if (to.HasValue)
+        {
+            query = query.Where(e => e.EndAt <= to);
+        }
+
+        int filteredCount = query.Count();
+
+        var items = query
+            .OrderByDescending(e => e.StartAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PaginatedResult<Event>(items, filteredCount, page, items.Count);
+    }
+
+    public Event? GetById(Guid id) => _events.Find(e => e.Id == id);
+
+    public Event Create(Event entity)
+    {
+        _events.Add(entity);
+        return entity;
+    }
+
+    public Event Update(Guid id, Event entity)
+    {
+        var existing = GetById(id);
         if (existing is null)
-            throw new InvalidOperationException($"Событие с идентификатором {id} не найдено.");
+            throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
+
+        existing.Title = entity.Title;
+        existing.StartAt = entity.StartAt;
+        existing.EndAt = entity.EndAt;
+        existing.Description = entity.Description;
 
         return existing;
     }
 
-    public Event Create(string title, DateTime startAt, DateTime endAt, string? description = null)
-    {
-        var newEvent = new Event(title, startAt, endAt, description);
-        _events.Add(newEvent);
-
-        return newEvent;
-    }
-
-    public void Update(Guid id, string title, DateTime startAt, DateTime endAt, string? description = null)
-    {
-        var existing = _events.Find(e => e.Id == id);
-        if (existing is null)
-            throw new InvalidOperationException($"Событие с идентификатором {id} не найдено.");
-
-        existing.Title = title;
-        existing.StartAt = startAt;
-        existing.EndAt = endAt;
-        existing.Description = description;
-    }
-
     public void Delete(Guid id)
     {
-        var existing = _events.Find(e => e.Id == id);
+        var existing = GetById(id);
         if (existing is null)
-            throw new InvalidOperationException($"Событие с идентификатором {id} не найдено.");
+            throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
 
         _events.Remove(existing);
     }
