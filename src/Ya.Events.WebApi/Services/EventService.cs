@@ -21,6 +21,11 @@ public class EventService : IEventService
         int page = 1,
         int pageSize = 10)
     {
+        if (from.HasValue && to.HasValue && from.Value > to.Value)
+        {
+            throw new ArgumentException("Дата начала (from) не может быть позже даты окончания (to).");
+        }
+
         var query = _events.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(title))

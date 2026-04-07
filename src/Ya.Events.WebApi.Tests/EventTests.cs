@@ -28,6 +28,7 @@ public class EventTests
     /// выбрасывается исключение ArgumentException с сообщением о том, что название события обязательно.
     /// </summary>
     [Fact]
+    [Trait("Scenario", "Failure")]
     public void Title_WhenIsNullOrEmpty_ThrowsArgumentException()
     {
         // Arrange

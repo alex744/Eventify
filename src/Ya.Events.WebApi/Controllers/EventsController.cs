@@ -25,8 +25,7 @@ public class EventsController : ControllerBase
     /// <param name="title">Поиск по названию</param>
     /// <param name="from">События, которые начинаются не раньше указанной даты</param>
     /// <param name="to">События, которые заканчиваются не позже указанной даты</param>    
-    [HttpGet]
-    //[Range(nameof(pageSize),1,100,"")]
+    [HttpGet]    
     public ActionResult<PaginatedResult<EventResponse>> GetAll(
         [FromQuery] string? title = null,
         [FromQuery] DateTime? from = null,
