@@ -1,6 +1,6 @@
 ﻿namespace Ya.Events.WebApi.Interfaces;
 
-public interface IStorage<T>
+public interface IStore<T>
 {
     List<T> Collection { get; }
 }
