@@ -6,13 +6,10 @@ using Ya.Events.WebApi.Services;
 
 namespace Ya.Events.WebApi.Tests;
 
-/// <summary>
-/// Успешные сценарии
-/// </summary>
-public partial class EventServiceTests
+public class EventServiceTests
 {
     private readonly List<Event> _events;
-    private readonly Mock<IStorage<Event>> _mockStorage;
+    private readonly Mock<IStore<Event>> _mockStore;
     private readonly EventService _service;
 
     public EventServiceTests()
@@ -22,9 +19,9 @@ public partial class EventServiceTests
             new("Событие 1", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), "Описание 1"),
             new("Событие 2", new DateTime(2026, 1, 3), new DateTime(2026, 1, 4), "Описание 2")
         };
-        _mockStorage = new Mock<IStorage<Event>>();
-        _mockStorage.Setup(s => s.Collection).Returns(_events);
-        _service = new EventService(_mockStorage.Object);
+        _mockStore = new Mock<IStore<Event>>();
+        _mockStore.Setup(s => s.Collection).Returns(_events);
+        _service = new EventService(_mockStore.Object);
     }
 
     /// <summary>
@@ -76,7 +73,7 @@ public partial class EventServiceTests
             new("Событие 1", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), "Описание 1")
         };
 
-        var mockStorage = new Mock<IStorage<Event>>();
+        var mockStorage = new Mock<IStore<Event>>();
         mockStorage.Setup(s => s.Collection).Returns(events);
         var service = new EventService(mockStorage.Object);
 
@@ -218,7 +215,7 @@ public partial class EventServiceTests
             ));
         }
 
-        var mockStorage = new Mock<IStorage<Event>>();
+        var mockStorage = new Mock<IStore<Event>>();
         mockStorage.Setup(s => s.Collection).Returns(events);
         var service = new EventService(mockStorage.Object);
 
@@ -264,7 +261,7 @@ public partial class EventServiceTests
             new Event("Конференция по бизнесу", new DateTime(2026, 1, 9), new DateTime(2026, 1, 10), "Описание")
         };
 
-        var mockStorage = new Mock<IStorage<Event>>();
+        var mockStorage = new Mock<IStore<Event>>();
         mockStorage.Setup(s => s.Collection).Returns(events);
         var service = new EventService(mockStorage.Object);
 

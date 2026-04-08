@@ -9,9 +9,9 @@ public class EventService : IEventService
 {
     private readonly List<Event> _events;
 
-    public EventService(IStorage<Event> storage)
+    public EventService(IStore<Event> store)
     {
-        _events = storage.Collection;
+        _events = store.Collection;
     }
 
     public PaginatedResult<Event> GetAll(

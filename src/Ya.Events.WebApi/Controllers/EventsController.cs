@@ -12,10 +12,12 @@ namespace Ya.Events.WebApi.Controllers;
 public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
+    private readonly IBookingService _bookingService;
 
-    public EventsController(IEventService eventService)
+    public EventsController(IEventService eventService, IBookingService bookingService)
     {
         _eventService = eventService;
+        _bookingService = bookingService;
     }
 
     /// <summary>
@@ -25,7 +27,7 @@ public class EventsController : ControllerBase
     /// <param name="title">Поиск по названию</param>
     /// <param name="from">События, которые начинаются не раньше указанной даты</param>
     /// <param name="to">События, которые заканчиваются не позже указанной даты</param>    
-    [HttpGet]    
+    [HttpGet]
     public ActionResult<PaginatedResult<EventResponse>> GetAll(
         [FromQuery] string? title = null,
         [FromQuery] DateTime? from = null,
@@ -74,7 +76,7 @@ public class EventsController : ControllerBase
     /// POST /events
     /// </summary>    
     [HttpPost]
-    public ActionResult<EventResponse> Create([FromBody] CreateEventRequest request)
+    public IActionResult Create([FromBody] CreateEventRequest request)
     {
         var created = _eventService.Create(request.ToEvent());
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created.ToResponse());
@@ -100,5 +102,16 @@ public class EventsController : ControllerBase
     {
         _eventService.Delete(id);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Создание брони
+    /// POST /events/{id}/book
+    /// </summary>    
+    [HttpPost("{eventId}/book")]
+    public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct)
+    {
+        var booking = await _bookingService.CreateBookingAsync(eventId, ct);
+        return AcceptedAtRoute("GetBookingById", new { id = booking.Id }, booking.ToResponse());
     }
 }
