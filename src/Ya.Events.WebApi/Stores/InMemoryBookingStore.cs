@@ -35,8 +35,8 @@ public class InMemoryBookingStore : IBookingStore
         if (!_bookings.TryGetValue(booking.Id, out var existing))
             throw new NotFoundException($"Бронь {booking.Id} не найдена.");
 
-        if (existing.Status != BookingStatus.Pending)
-            throw new BookingNotPendingException(existing);
+        //if (existing.Status != BookingStatus.Pending)
+        //    throw new BookingNotPendingException(existing);
 
         _bookings[booking.Id] = booking;
         return Task.CompletedTask;
