@@ -14,13 +14,16 @@ public class EventService : IEventService
         _events = store.Collection;
     }
 
-    public PaginatedResult<Event> GetAll(
+    public Task<PaginatedResult<Event>> GetAllAsync(
         string? title = null,
         DateTime? from = null,
         DateTime? to = null,
         int page = 1,
-        int pageSize = 10)
+        int pageSize = 10,
+        CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         if (from.HasValue && to.HasValue && from.Value > to.Value)
         {
             throw new ArgumentException("Дата начала (from) не может быть позже даты окончания (to).");
@@ -51,20 +54,31 @@ public class EventService : IEventService
             .Take(pageSize)
             .ToList();
 
-        return new PaginatedResult<Event>(items, filteredCount, page, items.Count);
+        var result = new PaginatedResult<Event>(items, filteredCount, page, items.Count);
+        return Task.FromResult(result);
     }
 
-    public Event? GetById(Guid id) => _events.Find(e => e.Id == id);
-
-    public Event Create(Event entity)
+    public Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
+        var entity = _events.Find(e => e.Id == id);
+        return Task.FromResult(entity);
+    }
+
+    public Task<Event> CreateAsync(Event entity, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
         _events.Add(entity);
-        return entity;
+        return Task.FromResult(entity);
     }
 
-    public Event Update(Guid id, Event entity)
+    public Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default)
     {
-        var existing = GetById(id);
+        ct.ThrowIfCancellationRequested();
+
+        var existing = _events.Find(e => e.Id == id);
         if (existing is null)
             throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
 
@@ -73,15 +87,18 @@ public class EventService : IEventService
         existing.EndAt = entity.EndAt;
         existing.Description = entity.Description;
 
-        return existing;
+        return Task.FromResult(existing);
     }
 
-    public void Delete(Guid id)
+    public Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var existing = GetById(id);
+        ct.ThrowIfCancellationRequested();
+
+        var existing = _events.Find(e => e.Id == id);
         if (existing is null)
             throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
 
         _events.Remove(existing);
+        return Task.CompletedTask;
     }
 }

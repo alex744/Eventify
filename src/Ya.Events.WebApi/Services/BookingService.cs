@@ -9,6 +9,7 @@ public class BookingService : IBookingService
 {
     private readonly IBookingStore _bookingStorage;
     private readonly IEventService _eventService;
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
     public BookingService(IBookingStore bookingStorage, IEventService eventService)
     {
@@ -25,18 +26,29 @@ public class BookingService : IBookingService
     {
         ct.ThrowIfCancellationRequested();
 
-        var existingEvent = _eventService.GetById(eventId);
+        var existingEvent = await _eventService.GetByIdAsync(eventId);
         if (existingEvent is null)
             throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
 
-        var booking = new Booking(
-            Guid.NewGuid(),
-            existingEvent.Id,
-            BookingStatus.Pending,
-            DateTime.UtcNow);
+        await _semaphore.WaitAsync(ct);
+        try
+        {
+            if (!existingEvent.TryReserveSeats())
+                throw new NoAvailableSeatsException("No available seats for this event");
 
-        await _bookingStorage.AddAsync(booking, ct);
-        return booking;
+            var booking = new Booking(
+                Guid.NewGuid(),
+                eventId,
+                BookingStatus.Pending,
+                DateTime.UtcNow);
+
+            await _bookingStorage.AddAsync(booking, ct);
+            return booking;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     /// <summary>

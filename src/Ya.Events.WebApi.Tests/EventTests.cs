@@ -9,18 +9,23 @@ public class EventTests
     /// при передаче некорректных данных:
     /// - пустой или состоящий из пробелов заголовок;
     /// - дата окончания раньше или равна дате начала.
+    /// - количество мест меньше или равно нулю.
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
     public void Constructor_WithInvalidData_ThrowsArgumentException()
     {
         // Act
-        var exception1 = Assert.Throws<ArgumentException>(() => new Event("", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), "Описание"));
-        var exception2 = Assert.Throws<ArgumentException>(() => new Event("Корректный заголовок", new DateTime(2026, 1, 2), new DateTime(2026, 1, 1), "Описание"));
+        var exception1 = Assert.Throws<ArgumentException>(() => new Event("", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), 10, "Описание"));
+        var exception2 = Assert.Throws<ArgumentException>(() => new Event("Корректный заголовок", new DateTime(2026, 1, 2), new DateTime(2026, 1, 1), 1, "Описание"));
+        var exception3 = Assert.Throws<ArgumentException>(() => new Event("Заголовок", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), 0, "Описание"));
+        var exception4 = Assert.Throws<ArgumentException>(() => new Event("Заголовок", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), -5, "Описание"));
 
         // Assert
         Assert.Equal("Название события обязательно. (Parameter 'Title')", exception1.Message);
         Assert.Equal("Дата окончания должна быть позже даты начала. (Parameter 'EndAt')", exception2.Message);
+        Assert.Equal("Общее количество мест должно быть положительным. (Parameter 'TotalSeats')", exception3.Message);
+        Assert.Equal("Общее количество мест должно быть положительным. (Parameter 'TotalSeats')", exception4.Message);
     }
 
     /// <summary>
@@ -33,7 +38,7 @@ public class EventTests
     {
         // Arrange
         var originalTitle = "Событие";
-        var newEvent = new Event(originalTitle, new DateTime(2026, 1, 2), new DateTime(2026, 1, 3), "Описание");
+        var newEvent = new Event(originalTitle, new DateTime(2026, 1, 2), new DateTime(2026, 1, 3), 10, "Описание");
 
         // Act
         var exception = Assert.Throws<ArgumentException>(() => newEvent.Title = "");
@@ -54,7 +59,7 @@ public class EventTests
     {
         // Arrange
         var originalTitle = "Событие";
-        var newEvent = new Event(originalTitle, new DateTime(2026, 1, 2), new DateTime(2026, 1, 3), "Описание");
+        var newEvent = new Event(originalTitle, new DateTime(2026, 1, 2), new DateTime(2026, 1, 3), 10, "Описание");
 
         // Act        
         var exception = Assert.Throws<ArgumentException>(() => newEvent.EndAt = new DateTime(2026, 1, 1));

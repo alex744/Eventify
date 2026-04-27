@@ -20,8 +20,8 @@ public class BookingsController : ControllerBase
     /// Возвращает текущее состояние брони по её идентификатору
     /// GET /bookings/{id}
     /// </summary>    
-    [HttpGet("{id}", Name = "GetBookingById")]
-    public async Task<ActionResult<BookingResponse>> GetBookingAsync(Guid id, CancellationToken ct)
+    [HttpGet("{id}")]
+    public async Task<ActionResult<BookingResponse>> GetBookingAsync(Guid id, CancellationToken ct = default)
     {
         var booking = await _bookingService.GetBookingByIdAsync(id, ct);
         if (booking == null)

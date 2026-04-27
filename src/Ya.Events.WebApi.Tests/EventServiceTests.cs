@@ -16,8 +16,8 @@ public class EventServiceTests
     {
         _events = new List<Event>
         {
-            new("Событие 1", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), "Описание 1"),
-            new("Событие 2", new DateTime(2026, 1, 3), new DateTime(2026, 1, 4), "Описание 2")
+            new("Событие 1", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2),10, "Описание 1"),
+            new("Событие 2", new DateTime(2026, 1, 3), new DateTime(2026, 1, 4),10, "Описание 2")
         };
         _mockStore = new Mock<IStore<Event>>();
         _mockStore.Setup(s => s.Collection).Returns(_events);
@@ -29,17 +29,19 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void Create_ValidEvent_ReturnsCreatedEvent()
+    public async Task Create_ValidEvent_ReturnsCreatedEvent()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var expectedEvent = new Event(
             title: "Событие 1",
             startAt: new DateTime(2026, 1, 1),
             endAt: new DateTime(2026, 1, 2),
+            totalSeats: 10,
             description: "Описание 1");
 
         // Act
-        var createdEvent = _service.Create(expectedEvent);
+        var createdEvent = await _service.CreateAsync(expectedEvent, ct);
 
         // Assert
         Assert.NotNull(createdEvent);
@@ -47,13 +49,14 @@ public class EventServiceTests
         Assert.Equal(expectedEvent.Title, createdEvent.Title);
         Assert.Equal(expectedEvent.StartAt, createdEvent.StartAt);
         Assert.Equal(expectedEvent.EndAt, createdEvent.EndAt);
+        Assert.Equal(expectedEvent.TotalSeats, createdEvent.TotalSeats);
         Assert.Equal(expectedEvent.Description, createdEvent.Description);
 
         // Проверка, что событие добавлено в хранилище
         Assert.Contains(createdEvent, _events);
 
         // Проверка, что GetById возвращает созданное событие
-        var retrievedEvent = _service.GetById(createdEvent.Id);
+        var retrievedEvent = await _service.GetByIdAsync(createdEvent.Id, ct);
         Assert.NotNull(retrievedEvent);
         Assert.Equal(createdEvent.Id, retrievedEvent.Id);
     }
@@ -63,14 +66,15 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetAll_ReturnsAllEvents()
+    public async Task GetAll_ReturnsAllEvents()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var events = new List<Event>
         {
-            new("Событие 3", new DateTime(2026, 1, 5), new DateTime(2026, 1, 6), "Описание 3"),
-            new("Событие 2", new DateTime(2026, 1, 3), new DateTime(2026, 1, 4), "Описание 2"),
-            new("Событие 1", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2), "Описание 1")
+            new("Событие 3", new DateTime(2026, 1, 5), new DateTime(2026, 1, 6),30, "Описание 3"),
+            new("Событие 2", new DateTime(2026, 1, 3), new DateTime(2026, 1, 4),20, "Описание 2"),
+            new("Событие 1", new DateTime(2026, 1, 1), new DateTime(2026, 1, 2),10, "Описание 1")
         };
 
         var mockStorage = new Mock<IStore<Event>>();
@@ -78,14 +82,14 @@ public class EventServiceTests
         var service = new EventService(mockStorage.Object);
 
         // Act
-        var result = service.GetAll().Items;
+        var result = await service.GetAllAsync(ct: ct);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(events.Count, result.Count);
-        Assert.Equal(events[0].Title, result[0].Title);
-        Assert.Equal(events[1].Title, result[1].Title);
-        Assert.Equal(events[2].Title, result[2].Title);
+        Assert.Equal(events.Count, result.TotalCount);
+        Assert.Equal(events[0].Title, result.Items[0].Title);
+        Assert.Equal(events[1].Title, result.Items[1].Title);
+        Assert.Equal(events[2].Title, result.Items[2].Title);
     }
 
     /// <summary>
@@ -93,14 +97,15 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetById_ExistingId_ReturnsEvent()
+    public async Task GetById_ExistingId_ReturnsEvent()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var existingEvent = _events[0];
         var expectedId = existingEvent.Id;
 
         // Act
-        var result = _service.GetById(expectedId);
+        var result = await _service.GetByIdAsync(expectedId, ct);
 
         // Assert
         Assert.NotNull(result);
@@ -108,6 +113,7 @@ public class EventServiceTests
         Assert.Equal(existingEvent.Title, result.Title);
         Assert.Equal(existingEvent.StartAt, result.StartAt);
         Assert.Equal(existingEvent.EndAt, result.EndAt);
+        Assert.Equal(existingEvent.TotalSeats, result.TotalSeats);
         Assert.Equal(existingEvent.Description, result.Description);
     }
 
@@ -116,19 +122,21 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void Update_ExistingEvent_UpdatesSuccessfully()
+    public async Task Update_ExistingEvent_UpdatesSuccessfully()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var existingEvent = _events[0];
         var id = existingEvent.Id;
         var expectedEvent = new Event(
             title: "Обновлённое событие",
-            description: "Новое описание",
             startAt: new DateTime(2026, 2, 1),
-            endAt: new DateTime(2026, 2, 2));
+            endAt: new DateTime(2026, 2, 2),
+            totalSeats: 15,
+            description: "Новое описание");
 
         // Act
-        var updatedEvent = _service.Update(id, expectedEvent);
+        var updatedEvent = await _service.UpdateAsync(id, expectedEvent, ct);
 
         // Assert
         Assert.NotNull(updatedEvent);
@@ -144,13 +152,14 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void Delete_ExistingEvent_DeletesSuccessfully()
+    public async Task Delete_ExistingEvent_DeletesSuccessfully()
     {
         // Arrange       
+        var ct = TestContext.Current.CancellationToken;
         var id = _events[0].Id;
 
         // Act
-        _service.Delete(id);
+        await _service.DeleteAsync(id, ct);
 
         // Assert        
         Assert.DoesNotContain(_events, e => e.Id == id);
@@ -162,13 +171,14 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetAll_FilterByTitle_ReturnsMatchingEvents()
+    public async Task GetAll_FilterByTitle_ReturnsMatchingEvents()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var search = "событие";
 
         // Act
-        var result = _service.GetAll(search);
+        var result = await _service.GetAllAsync(title: search, ct: ct);
 
         // Assert
         Assert.Equal(2, result.TotalCount);
@@ -181,14 +191,15 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetAll_FilterByDateRange_ReturnsEventsWithinRange()
+    public async Task GetAll_FilterByDateRange_ReturnsEventsWithinRange()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var fromDate = new DateTime(2026, 1, 1);
         var toDate = new DateTime(2026, 1, 4);
 
         // Act
-        var result = _service.GetAll(from: fromDate, to: toDate);
+        var result = await _service.GetAllAsync(from: fromDate, to: toDate, ct: ct);
 
         // Assert
         Assert.Equal(2, result.TotalCount);
@@ -201,9 +212,10 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetAll_WithPagination_ReturnsCorrectPage()
+    public async Task GetAll_WithPagination_ReturnsCorrectPage()
     {
         // Arrange: создаём 15 событий с последовательными датами
+        var ct = TestContext.Current.CancellationToken;
         var events = new List<Event>();
         for (int i = 1; i <= 15; i++)
         {
@@ -211,6 +223,7 @@ public class EventServiceTests
                 title: $"Событие {i}",
                 startAt: new DateTime(2026, 1, i),
                 endAt: new DateTime(2026, 1, i + 1),
+                totalSeats: i * 10,
                 description: $"Описание {i}"
             ));
         }
@@ -222,7 +235,7 @@ public class EventServiceTests
         // Act: запрашиваем вторую страницу, размер страницы 5
         int page = 2;
         int pageSize = 5;
-        var result = service.GetAll(page: page, pageSize: pageSize);
+        var result = await service.GetAllAsync(page: page, pageSize: pageSize, ct: ct);
 
         // Assert: проверяем метаданные пагинации
         Assert.NotNull(result);
@@ -249,16 +262,17 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetAll_CombinedFilters_ReturnsFilteredEvents()
+    public async Task GetAll_CombinedFilters_ReturnsFilteredEvents()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var events = new List<Event>
         {
-            new Event("Конференция по маркетингу", new DateTime(2026, 1, 15), new DateTime(2026, 1, 20), "Описание"),
-            new Event("Конференция по дизайну", new DateTime(2026, 1, 14), new DateTime(2026, 1, 15), "Описание"),
-            new Event("Встреча разработчиков", new DateTime(2026, 1, 11), new DateTime(2026, 1, 13), "Описание"),
-            new Event("Конференция по IT", new DateTime(2026, 1, 10), new DateTime(2026, 1, 12), "Описание"),
-            new Event("Конференция по бизнесу", new DateTime(2026, 1, 9), new DateTime(2026, 1, 10), "Описание")
+            new Event("Конференция по маркетингу", new DateTime(2026, 1, 15), new DateTime(2026, 1, 20),100, "Описание"),
+            new Event("Конференция по дизайну", new DateTime(2026, 1, 14), new DateTime(2026, 1, 15),50, "Описание"),
+            new Event("Встреча разработчиков", new DateTime(2026, 1, 11), new DateTime(2026, 1, 13),200, "Описание"),
+            new Event("Конференция по IT", new DateTime(2026, 1, 10), new DateTime(2026, 1, 12),80, "Описание"),
+            new Event("Конференция по бизнесу", new DateTime(2026, 1, 9), new DateTime(2026, 1, 10),120, "Описание")
         };
 
         var mockStorage = new Mock<IStore<Event>>();
@@ -273,7 +287,7 @@ public class EventServiceTests
         int pageSize = 2;
 
         // Act
-        var result = service.GetAll(title: titleFilter, from: fromDate, to: toDate, page: page, pageSize: pageSize);
+        var result = await service.GetAllAsync(title: titleFilter, from: fromDate, to: toDate, page: page, pageSize: pageSize, ct: ct);
 
         // Assert - общее количество отфильтрованных событий (3)
         Assert.Equal(3, result.TotalCount);
@@ -290,7 +304,7 @@ public class EventServiceTests
         // Act - вторая страница
         page = 2;
         pageSize = 1;
-        result = service.GetAll(title: titleFilter, from: fromDate, to: toDate, page: page, pageSize: pageSize);
+        result = await service.GetAllAsync(title: titleFilter, from: fromDate, to: toDate, page: page, pageSize: pageSize, ct: ct);
 
         // Assert - вторая страница содержит только оставшееся событие
         Assert.Equal(3, result.TotalCount);
@@ -306,14 +320,15 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void GetAll_WhenFromLessThanOrEqualToTo_DoesNotThrow()
+    public async Task GetAll_WhenFromLessThanOrEqualToTo_DoesNotThrow()
     {
-        // Arrange        
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var from = new DateTime(2026, 1, 1);
         var to = new DateTime(2026, 12, 31);
 
         // Act
-        var result = _service.GetAll(from: from, to: to);
+        var result = await _service.GetAllAsync(from: from, to: to, ct: ct);
 
         // Assert
         Assert.NotNull(result);
@@ -326,14 +341,15 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void GetAll_WhenFromGreaterThanTo_ThrowsArgumentException()
+    public async Task GetAll_WhenFromGreaterThanTo_ThrowsArgumentException()
     {
-        // Arrange        
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var from = new DateTime(2025, 12, 31);
         var to = new DateTime(2025, 1, 1);
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => _service.GetAll(from: from, to: to));
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => _service.GetAllAsync(from: from, to: to, ct: ct));
         Assert.Equal("Дата начала (from) не может быть позже даты окончания (to).", exception.Message);
     }
 
@@ -342,13 +358,14 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void GetById_NonExistentId_ReturnsNull()
+    public async Task GetById_NonExistentId_ReturnsNull()
     {
         // Arrange        
+        var ct = TestContext.Current.CancellationToken;
         var nonExistentId = Guid.NewGuid();
 
         // Act
-        var notFoundEvent = _service.GetById(nonExistentId);
+        var notFoundEvent = await _service.GetByIdAsync(nonExistentId, ct);
 
         // Assert
         Assert.Null(notFoundEvent);
@@ -359,18 +376,20 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void Update_NonExistentId_ThrowsNotFoundException()
+    public async Task Update_NonExistentId_ThrowsNotFoundException()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var nonExistentId = Guid.NewGuid();
         var expectedEvent = new Event(
             title: "Обновлённое название",
             startAt: new DateTime(2026, 2, 1),
             endAt: new DateTime(2026, 2, 2),
+            totalSeats: 5,
             description: "Новое описание");
 
         // Act & Assert
-        var exception = Assert.Throws<NotFoundException>(() => _service.Update(nonExistentId, expectedEvent));
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _service.UpdateAsync(nonExistentId, expectedEvent, ct));
         Assert.Equal($"Событие с идентификатором '{nonExistentId}' не найдено.", exception.Message);
     }
 
@@ -379,13 +398,14 @@ public class EventServiceTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void Delete_NonExistentId_ThrowsNotFoundException()
+    public async Task Delete_NonExistentId_ThrowsNotFoundException()
     {
         // Arrange
+        var ct = TestContext.Current.CancellationToken;
         var nonExistentId = Guid.NewGuid();
 
         // Act & Assert
-        var exception = Assert.Throws<NotFoundException>(() => _service.Delete(nonExistentId));
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _service.DeleteAsync(nonExistentId, ct));
         Assert.Equal($"Событие с идентификатором '{nonExistentId}' не найдено.", exception.Message);
     }
 }

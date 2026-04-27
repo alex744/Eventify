@@ -13,7 +13,9 @@ public static class EventMappings
             entity.Title,
             entity.Description,
             entity.StartAt,
-            entity.EndAt);
+            entity.EndAt,
+            entity.TotalSeats,
+            entity.AvailableSeats);
     }
 
     public static Event ToEvent(this CreateEventRequest request)
@@ -22,6 +24,7 @@ public static class EventMappings
             request.Title,
             request.StartAt!.Value,
             request.EndAt!.Value,
+            request.TotalSeats!.Value,
             request.Description
         );
     }
@@ -32,6 +35,7 @@ public static class EventMappings
             request.Title,
             request.StartAt!.Value,
             request.EndAt!.Value,
+            request.TotalSeats!.Value,
             request.Description
         );
     }

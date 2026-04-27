@@ -28,15 +28,16 @@ public class EventsController : ControllerBase
     /// <param name="from">События, которые начинаются не раньше указанной даты</param>
     /// <param name="to">События, которые заканчиваются не позже указанной даты</param>    
     [HttpGet]
-    public ActionResult<PaginatedResult<EventResponse>> GetAll(
+    public async Task<ActionResult<PaginatedResult<EventResponse>>> GetAllAsync(
         [FromQuery] string? title = null,
         [FromQuery] DateTime? from = null,
         [FromQuery] DateTime? to = null,
         [FromQuery, Range(1, int.MaxValue)] int page = 1,
-        [FromQuery, Range(1, 100)] int pageSize = 10)
+        [FromQuery, Range(1, 100)] int pageSize = 10,
+        CancellationToken ct = default)
     {
         // Получение данных из сервиса
-        var paginatedResult = _eventService.GetAll(title, from, to, page, pageSize);
+        var paginatedResult = await _eventService.GetAllAsync(title, from, to, page, pageSize, ct);
 
         // Маппинг доменных объектов в DTO ответа
         var items = paginatedResult.Items
@@ -56,9 +57,9 @@ public class EventsController : ControllerBase
     /// GET /events/{id}
     /// </summary>    
     [HttpGet("{id}")]
-    public ActionResult<EventResponse> GetById(Guid id)
+    public async Task<ActionResult<EventResponse>> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var entity = _eventService.GetById(id);
+        var entity = await _eventService.GetByIdAsync(id, ct);
         if (entity is null)
         {
             return NotFound(new ProblemDetails
@@ -76,10 +77,10 @@ public class EventsController : ControllerBase
     /// POST /events
     /// </summary>    
     [HttpPost]
-    public IActionResult Create([FromBody] CreateEventRequest request)
+    public async Task<IActionResult> CreateAsync([FromBody] CreateEventRequest request, CancellationToken ct = default)
     {
-        var created = _eventService.Create(request.ToEvent());
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created.ToResponse());
+        var created = await _eventService.CreateAsync(request.ToEvent(), ct);
+        return CreatedAtAction("GetById", new { id = created.Id }, created.ToResponse());
     }
 
     /// <summary>
@@ -87,9 +88,9 @@ public class EventsController : ControllerBase
     /// PUT /events/{id}
     /// </summary>    
     [HttpPut("{id}")]
-    public ActionResult<EventResponse> Update(Guid id, [FromBody] UpdateEventRequest request)
+    public async Task<ActionResult<EventResponse>> UpdateAsync(Guid id, [FromBody] UpdateEventRequest request, CancellationToken ct = default)
     {
-        var updated = _eventService.Update(id, request.ToEvent());
+        var updated = await _eventService.UpdateAsync(id, request.ToEvent(), ct);
         return updated.ToResponse();
     }
 
@@ -98,9 +99,9 @@ public class EventsController : ControllerBase
     /// DELETE /events/{id}
     /// </summary>    
     [HttpDelete("{id}")]
-    public IActionResult Delete(Guid id)
+    public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        _eventService.Delete(id);
+        await _eventService.DeleteAsync(id, ct);
         return NoContent();
     }
 
@@ -109,9 +110,9 @@ public class EventsController : ControllerBase
     /// POST /events/{id}/book
     /// </summary>    
     [HttpPost("{eventId}/book")]
-    public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct)
+    public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
     {
         var booking = await _bookingService.CreateBookingAsync(eventId, ct);
-        return AcceptedAtRoute("GetBookingById", new { id = booking.Id }, booking.ToResponse());
+        return AcceptedAtAction("GetBooking", "Bookings", new { id = booking.Id }, booking.ToResponse());
     }
 }
