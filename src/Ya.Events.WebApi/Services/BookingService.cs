@@ -9,7 +9,7 @@ public class BookingService : IBookingService
 {
     private readonly IBookingStore _bookingStorage;
     private readonly IEventService _eventService;
-    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+    private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public BookingService(IBookingStore bookingStorage, IEventService eventService)
     {
@@ -26,22 +26,30 @@ public class BookingService : IBookingService
     {
         ct.ThrowIfCancellationRequested();
 
-        var existingEvent = await _eventService.GetByIdAsync(eventId);
-        if (existingEvent is null)
-            throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
-
+        // Критическая секция – захватываем разделяемый семафор
         await _semaphore.WaitAsync(ct);
         try
         {
+            // 1. Получаем событие
+            var existingEvent = await _eventService.GetByIdAsync(eventId);
+            if (existingEvent is null)
+                throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
+
+            // 2. Атомарно проверяем и резервируем место
             if (!existingEvent.TryReserveSeats())
                 throw new NoAvailableSeatsException("No available seats for this event");
 
+            // 3. Сохраняем обновлённое событие (место занято)
+            await _eventService.UpdateAsync(existingEvent.Id, existingEvent, ct);
+
+            // 4. Создаём бронь
             var booking = new Booking(
                 Guid.NewGuid(),
                 eventId,
                 BookingStatus.Pending,
                 DateTime.UtcNow);
 
+            // 5. Сохраняем бронь
             await _bookingStorage.AddAsync(booking, ct);
             return booking;
         }

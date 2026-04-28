@@ -36,7 +36,7 @@ public class Event
     public int TotalSeats
     {
         get => _totalSeats;
-        private set
+        set
         {
             if (value <= 0)
                 throw new ArgumentException("Общее количество мест должно быть положительным.", nameof(TotalSeats));

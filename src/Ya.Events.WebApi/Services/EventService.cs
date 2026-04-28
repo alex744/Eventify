@@ -85,6 +85,7 @@ public class EventService : IEventService
         existing.Title = entity.Title;
         existing.StartAt = entity.StartAt;
         existing.EndAt = entity.EndAt;
+        existing.TotalSeats = entity.TotalSeats;
         existing.Description = entity.Description;
 
         return Task.FromResult(existing);

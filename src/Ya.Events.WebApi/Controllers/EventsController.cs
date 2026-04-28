@@ -106,10 +106,19 @@ public class EventsController : ControllerBase
     }
 
     /// <summary>
-    /// Создание брони
-    /// POST /events/{id}/book
-    /// </summary>    
+    /// Создание брони для события.
+    /// POST /events/{eventId}/book
+    /// </summary>
+    /// <param name="eventId">Идентификатор события.</param>
+    /// <param name="ct">Токен отмены.</param>
+    /// <returns>Бронь со статусом Pending; код 202 Accepted с Location в заголовке.</returns>
+    /// <response code="202">Бронь успешно создана и находится в ожидании подтверждения.</response>
+    /// <response code="404">Событие с указанным идентификатором не найдено.</response>
+    /// <response code="409">Нет доступных мест для бронирования.</response>
     [HttpPost("{eventId}/book")]
+    [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(BookingResponse))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
     {
         var booking = await _bookingService.CreateBookingAsync(eventId, ct);

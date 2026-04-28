@@ -87,10 +87,6 @@ public class BookingProcessorService : BackgroundService
         {
             _logger.LogInformation("Обработка брони '{Id}' отменена.", booking.Id);
         }
-        //catch (BookingNotPendingException ex)
-        //{
-        //    _logger.LogWarning(ex, "Бронь '{BookingId}' уже обработана (статус: {Status})", ex.Booking?.Id, ex.Booking?.Status);
-        //}
         catch (Exception ex)
         {
             _logger.LogError(ex, "Ошибка при обработке брони '{Id}'", booking.Id);
