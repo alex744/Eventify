@@ -5,9 +5,15 @@ namespace Ya.Events.WebApi.Interfaces;
 
 public interface IEventService
 {
-    PaginatedResult<Event> GetAll(string? title, DateTime? from, DateTime? to, int page, int pageSize);
-    Event? GetById(Guid id);
-    Event Create(Event entity);
-    Event Update(Guid id, Event entity);
-    void Delete(Guid id);
+    Task<PaginatedResult<Event>> GetAllAsync(
+        string? title = null,
+        DateTime? from = null,
+        DateTime? to = null,
+        int page = 1,
+        int pageSize = 10,
+        CancellationToken ct = default);
+    Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<Event> CreateAsync(Event entity, CancellationToken ct = default);
+    Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default);
+    Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

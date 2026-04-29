@@ -9,6 +9,7 @@ public class BookingService : IBookingService
 {
     private readonly IBookingStore _bookingStorage;
     private readonly IEventService _eventService;
+    private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public BookingService(IBookingStore bookingStorage, IEventService eventService)
     {
@@ -25,18 +26,37 @@ public class BookingService : IBookingService
     {
         ct.ThrowIfCancellationRequested();
 
-        var existingEvent = _eventService.GetById(eventId);
-        if (existingEvent is null)
-            throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
+        // Критическая секция – захватываем разделяемый семафор
+        await _semaphore.WaitAsync(ct);
+        try
+        {
+            // 1. Получаем событие
+            var existingEvent = await _eventService.GetByIdAsync(eventId);
+            if (existingEvent is null)
+                throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
 
-        var booking = new Booking(
-            Guid.NewGuid(),
-            existingEvent.Id,
-            BookingStatus.Pending,
-            DateTime.UtcNow);
+            // 2. Атомарно проверяем и резервируем место
+            if (!existingEvent.TryReserveSeats())
+                throw new NoAvailableSeatsException("No available seats for this event");
 
-        await _bookingStorage.AddAsync(booking, ct);
-        return booking;
+            // 3. Сохраняем обновлённое событие (место занято)
+            await _eventService.UpdateAsync(existingEvent.Id, existingEvent, ct);
+
+            // 4. Создаём бронь
+            var booking = new Booking(
+                Guid.NewGuid(),
+                eventId,
+                BookingStatus.Pending,
+                DateTime.UtcNow);
+
+            // 5. Сохраняем бронь
+            await _bookingStorage.AddAsync(booking, ct);
+            return booking;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     /// <summary>
