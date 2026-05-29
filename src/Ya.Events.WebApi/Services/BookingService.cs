@@ -1,4 +1,5 @@
-﻿using Ya.Events.WebApi.Enums;
+﻿using Microsoft.EntityFrameworkCore;
+using Ya.Events.WebApi.DataAccess;
 using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
@@ -7,14 +8,12 @@ namespace Ya.Events.WebApi.Services;
 
 public class BookingService : IBookingService
 {
-    private readonly IBookingStore _bookingStorage;
-    private readonly IEventService _eventService;
+    private readonly AppDbContext _context;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    public BookingService(IBookingStore bookingStorage, IEventService eventService)
+    public BookingService(AppDbContext context)
     {
-        _bookingStorage = bookingStorage;
-        _eventService = eventService;
+        _context = context;
     }
 
     /// <summary>
@@ -31,26 +30,19 @@ public class BookingService : IBookingService
         try
         {
             // 1. Получаем событие
-            var existingEvent = await _eventService.GetByIdAsync(eventId);
+            var existingEvent = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
             if (existingEvent is null)
                 throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
 
             // 2. Атомарно проверяем и резервируем место
             if (!existingEvent.TryReserveSeats())
-                throw new NoAvailableSeatsException("No available seats for this event");
+                throw new NoAvailableSeatsException("Свободных мест на это событие нет.");
 
-            // 3. Сохраняем обновлённое событие (место занято)
-            await _eventService.UpdateAsync(existingEvent.Id, existingEvent, ct);
+            // 3. Создаём и сохраняем бронь
+            var booking = Booking.CreatePending(eventId);
+            await _context.Bookings.AddAsync(booking, ct);
+            await _context.SaveChangesAsync(ct);
 
-            // 4. Создаём бронь
-            var booking = new Booking(
-                Guid.NewGuid(),
-                eventId,
-                BookingStatus.Pending,
-                DateTime.UtcNow);
-
-            // 5. Сохраняем бронь
-            await _bookingStorage.AddAsync(booking, ct);
             return booking;
         }
         finally
@@ -65,5 +57,5 @@ public class BookingService : IBookingService
     /// <param name="bookingId">Идентификатор брони.</param>
     /// <returns>Бронь, если найдена; иначе null.</returns>    
     public async Task<Booking?> GetBookingByIdAsync(Guid bookingId, CancellationToken ct = default)
-        => await _bookingStorage.GetByIdAsync(bookingId, ct);
+        => await _context.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId, ct);
 }

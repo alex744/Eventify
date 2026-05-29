@@ -1,9 +1,9 @@
+using Microsoft.EntityFrameworkCore;
+using Ya.Events.WebApi.DataAccess;
 using Ya.Events.WebApi.Extensions;
 using Ya.Events.WebApi.Interfaces;
-using Ya.Events.WebApi.Models;
 using Ya.Events.WebApi.Services;
 using Ya.Events.WebApi.Services.BackgroundServices;
-using Ya.Events.WebApi.Stores;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,16 +11,25 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<IEventService, EventService>();
-builder.Services.AddScoped<IBookingService, BookingService>();
-builder.Services.AddHostedService<BookingProcessorService>();
 
-// Регистрация хранилища (singleton, т.к. состояние в памяти)
-builder.Services.AddSingleton<IBookingStore, InMemoryBookingStore>();
-builder.Services.AddSingleton<IStore<Event>>(sp => new InMemoryStore<Event>(new List<Event>()));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
+
+builder.Services.AddHostedService<BookingProcessorService>();
 
 var app = builder.Build();
 
+// Инициализация базы данных при запуске приложения.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+}
+
+// Конфигурация Swagger для разработки.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

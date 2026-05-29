@@ -22,13 +22,26 @@ public record Booking
     /// <summary>Дата и время обработки брони (опционально).</summary>
     public DateTime? ProcessedAt { get; private set; }
 
-    public Booking(Guid id, Guid eventId, BookingStatus status, DateTime createdAt, DateTime? processedAt = null)
+    /// <summary>Ссылка на событие (опционально).</summary>
+    public Event? Event { get; private set; }
+
+    private Booking() { }
+
+    private Booking(Guid id, Guid eventId, BookingStatus status, DateTime createdAt, DateTime? processedAt = null)
     {
         Id = id;
         EventId = eventId;
         Status = status;
         CreatedAt = createdAt;
         ProcessedAt = processedAt;
+    }
+
+    public static Booking CreatePending(Guid eventId)
+    {
+        if (eventId == Guid.Empty)
+            throw new ArgumentException("Идентификатор события не может быть пустым.", nameof(EventId));
+
+        return new Booking(Guid.NewGuid(), eventId, BookingStatus.Pending, DateTime.UtcNow);
     }
 
     public void Reject()

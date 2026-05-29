@@ -16,15 +16,15 @@ public class BookingIntegrationTests : IClassFixture<WebApiFactory>
     }
 
     [Fact]
-    public async Task CreateBooking_Returns202AndCorrectLocationHeader()
+    public async Task CreateBookingAsync_Returns202AndCorrectLocationHeader()
     {
         // Arrange — создаём событие с местами
         var ct = TestContext.Current.CancellationToken;
         var createEventRequest = new CreateEventRequest
         {
             Title = "Тестовое событие",
-            StartAt = new DateTime(2026, 1, 1),
-            EndAt = new DateTime(2026, 1, 2),
+            StartAt = DateTime.UtcNow.AddDays(1),
+            EndAt = DateTime.UtcNow.AddDays(3),
             TotalSeats = 5
         };
 

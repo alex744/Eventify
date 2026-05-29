@@ -1,4 +1,6 @@
-﻿using Ya.Events.WebApi.DTOs.Responses;
+﻿using Microsoft.EntityFrameworkCore;
+using Ya.Events.WebApi.DataAccess;
+using Ya.Events.WebApi.DTOs.Responses;
 using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
@@ -7,14 +9,14 @@ namespace Ya.Events.WebApi.Services;
 
 public class EventService : IEventService
 {
-    private readonly List<Event> _events;
+    private readonly AppDbContext _context;
 
-    public EventService(IStore<Event> store)
+    public EventService(AppDbContext context)
     {
-        _events = store.Collection;
+        _context = context;
     }
 
-    public Task<PaginatedResult<Event>> GetAllAsync(
+    public async Task<PaginatedResult<Event>> GetAllAsync(
         string? title = null,
         DateTime? from = null,
         DateTime? to = null,
@@ -29,7 +31,7 @@ public class EventService : IEventService
             throw new ArgumentException("Дата начала (from) не может быть позже даты окончания (to).");
         }
 
-        var query = _events.AsEnumerable();
+        var query = _context.Events.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(title))
         {
@@ -46,39 +48,33 @@ public class EventService : IEventService
             query = query.Where(e => e.EndAt <= to);
         }
 
-        int filteredCount = query.Count();
+        int filteredCount = await query.CountAsync(ct);
 
-        var items = query
+        var items = await query
             .OrderByDescending(e => e.StartAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToList();
+            .ToListAsync(ct);
 
-        var result = new PaginatedResult<Event>(items, filteredCount, page, items.Count);
-        return Task.FromResult(result);
+        return new PaginatedResult<Event>(items, filteredCount, page, pageSize);
     }
 
-    public Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    public async Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
-
-        var entity = _events.Find(e => e.Id == id);
-        return Task.FromResult(entity);
+        var entity = await _context.Events.FirstOrDefaultAsync(e => e.Id == id, ct);
+        return entity;
     }
 
-    public Task<Event> CreateAsync(Event entity, CancellationToken ct = default)
+    public async Task<Event> CreateAsync(Event entity, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
-
-        _events.Add(entity);
-        return Task.FromResult(entity);
+        await _context.Events.AddAsync(entity, ct);
+        await _context.SaveChangesAsync(ct);
+        return entity;
     }
 
-    public Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default)
+    public async Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
-
-        var existing = _events.Find(e => e.Id == id);
+        var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (existing is null)
             throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
 
@@ -88,18 +84,17 @@ public class EventService : IEventService
         existing.TotalSeats = entity.TotalSeats;
         existing.Description = entity.Description;
 
-        return Task.FromResult(existing);
+        await _context.SaveChangesAsync(ct);
+        return existing;
     }
 
-    public Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        ct.ThrowIfCancellationRequested();
-
-        var existing = _events.Find(e => e.Id == id);
+        var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (existing is null)
             throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
 
-        _events.Remove(existing);
-        return Task.CompletedTask;
+        _context.Events.Remove(existing);
+        await _context.SaveChangesAsync(ct);
     }
 }

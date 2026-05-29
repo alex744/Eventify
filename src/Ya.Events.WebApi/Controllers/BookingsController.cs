@@ -21,6 +21,9 @@ public class BookingsController : ControllerBase
     /// GET /bookings/{id}
     /// </summary>    
     [HttpGet("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(BookingResponse))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<BookingResponse>> GetBookingAsync(Guid id, CancellationToken ct = default)
     {
         var booking = await _bookingService.GetBookingByIdAsync(id, ct);

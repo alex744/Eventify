@@ -28,6 +28,8 @@ public class EventsController : ControllerBase
     /// <param name="from">События, которые начинаются не раньше указанной даты</param>
     /// <param name="to">События, которые заканчиваются не позже указанной даты</param>    
     [HttpGet]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(PaginatedResult<EventResponse>))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<PaginatedResult<EventResponse>>> GetAllAsync(
         [FromQuery] string? title = null,
         [FromQuery] DateTime? from = null,
@@ -57,6 +59,9 @@ public class EventsController : ControllerBase
     /// GET /events/{id}
     /// </summary>    
     [HttpGet("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(EventResponse))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<EventResponse>> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await _eventService.GetByIdAsync(id, ct);
@@ -77,6 +82,9 @@ public class EventsController : ControllerBase
     /// POST /events
     /// </summary>    
     [HttpPost]
+    [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(EventResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> CreateAsync([FromBody] CreateEventRequest request, CancellationToken ct = default)
     {
         var created = await _eventService.CreateAsync(request.ToEvent(), ct);
@@ -88,6 +96,10 @@ public class EventsController : ControllerBase
     /// PUT /events/{id}
     /// </summary>    
     [HttpPut("{id}")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(EventResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<EventResponse>> UpdateAsync(Guid id, [FromBody] UpdateEventRequest request, CancellationToken ct = default)
     {
         var updated = await _eventService.UpdateAsync(id, request.ToEvent(), ct);
@@ -99,6 +111,9 @@ public class EventsController : ControllerBase
     /// DELETE /events/{id}
     /// </summary>    
     [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         await _eventService.DeleteAsync(id, ct);
@@ -119,6 +134,7 @@ public class EventsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(BookingResponse))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
     {
         var booking = await _bookingService.CreateBookingAsync(eventId, ct);

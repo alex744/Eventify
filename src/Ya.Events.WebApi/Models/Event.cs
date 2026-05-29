@@ -17,7 +17,18 @@ public class Event
     }
 
     public string? Description { get; set; }
-    public DateTime StartAt { get; set; }
+
+    private DateTime _startAt;
+    public DateTime StartAt
+    {
+        get => _startAt;
+        set
+        {
+            if (value < DateTime.UtcNow)
+                throw new ArgumentException("Дата начала не может быть в прошлом.", nameof(StartAt));
+            _startAt = value;
+        }
+    }
 
     private DateTime _endAt;
     public DateTime EndAt
@@ -47,6 +58,11 @@ public class Event
     /// <summary>Текущее количество свободных мест.</summary>
     public int AvailableSeats { get; private set; }
 
+    /// <summary>Список бронирований, связанных с событием.</summary>
+    public ICollection<Booking> Bookings { get; private set; } = [];
+
+    private Event() { }
+
     /// <summary>
     /// Создаёт событие с обязательными параметрами.
     /// </summary>
@@ -58,7 +74,7 @@ public class Event
     public Event(string title, DateTime startAt, DateTime endAt, int totalSeats, string? description = null)
     {
         Id = Guid.NewGuid();
-        Title = title;
+        Title = title.Trim();
         StartAt = startAt;
         EndAt = endAt;
         TotalSeats = totalSeats;
