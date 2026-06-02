@@ -1,19 +1,18 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Ya.Events.WebApi.DataAccess;
-using Ya.Events.WebApi.Exceptions;
+﻿using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
+using Ya.Events.WebApi.Repositories;
 
 namespace Ya.Events.WebApi.Services;
 
 public class BookingService : IBookingService
 {
-    private readonly AppDbContext _context;
+    private readonly IBookingRepository _repository;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    public BookingService(AppDbContext context)
+    public BookingService(IBookingRepository repository)
     {
-        _context = context;
+        _repository = repository;
     }
 
     /// <summary>
@@ -30,7 +29,7 @@ public class BookingService : IBookingService
         try
         {
             // 1. Получаем событие
-            var existingEvent = await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
+            var existingEvent = await _repository.GetEventByIdAsync(eventId, ct);
             if (existingEvent is null)
                 throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
 
@@ -40,8 +39,7 @@ public class BookingService : IBookingService
 
             // 3. Создаём и сохраняем бронь
             var booking = Booking.CreatePending(eventId);
-            await _context.Bookings.AddAsync(booking, ct);
-            await _context.SaveChangesAsync(ct);
+            await _repository.CreateAsync(booking, ct);
 
             return booking;
         }
@@ -57,5 +55,5 @@ public class BookingService : IBookingService
     /// <param name="bookingId">Идентификатор брони.</param>
     /// <returns>Бронь, если найдена; иначе null.</returns>    
     public async Task<Booking?> GetBookingByIdAsync(Guid bookingId, CancellationToken ct = default)
-        => await _context.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId, ct);
+        => await _repository.GetByIdAsync(bookingId, ct);
 }
