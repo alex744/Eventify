@@ -1,0 +1,404 @@
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Testcontainers.PostgreSql;
+using Ya.Events.WebApi.DataAccess;
+using Ya.Events.WebApi.Enums;
+using Ya.Events.WebApi.Models;
+using Ya.Events.WebApi.Repositories;
+
+namespace Ya.Events.WebApi.IntegrationTests;
+
+public sealed class BookingRepositoryTests : IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
+        .WithDatabase("testdb")
+        .Build();
+
+    private IServiceProvider _serviceProvider = null!;
+    private IBookingRepository _bookingRepository = null!;
+    private IEventRepository _eventRepository = null!;
+
+    public async ValueTask InitializeAsync()
+    {
+        await _postgres.StartAsync();
+
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
+        services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddScoped<IEventRepository, EventRepository>();
+
+        _serviceProvider = services.BuildServiceProvider();
+        _bookingRepository = _serviceProvider.GetRequiredService<IBookingRepository>();
+        _eventRepository = _serviceProvider.GetRequiredService<IEventRepository>();
+
+        // Инициализируем БД с миграциями
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.MigrateAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _postgres.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Подготавливает БД к новому тесту: очищает таблицы и сбрасывает identity.
+    /// </summary>
+    private async Task ResetDatabaseAsync()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await context.Database.ExecuteSqlRawAsync(
+            "TRUNCATE TABLE events, bookings RESTART IDENTITY CASCADE");
+    }
+
+    /// <summary>
+    /// Создаёт тестовое событие.
+    /// </summary>
+    private async Task<Event> CreateTestEventAsync(int totalSeats = 10)
+    {
+        var futureDate = DateTime.UtcNow.AddDays(1);
+        return await _eventRepository.CreateAsync(new Event(
+            title: "Test Event",
+            startAt: futureDate,
+            endAt: futureDate.AddHours(2),
+            totalSeats: totalSeats
+        ), CancellationToken.None);
+    }
+
+    #region CreateAsync Tests
+
+    /// <summary>
+    /// Проверяет, что бронь успешно создаётся и возвращается с корректными данными.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task CreateAsync_WithValidBooking_ReturnsCreatedBooking()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync();
+        var booking = Booking.CreatePending(@event.Id);
+
+        // Act
+        var result = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
+
+        // Assert
+        Assert.NotEqual(Guid.Empty, result.Id);
+        Assert.Equal(@event.Id, result.EventId);
+        Assert.Equal(BookingStatus.Pending, result.Status);
+        Assert.Null(result.ProcessedAt);
+    }
+
+    /// <summary>
+    /// Проверяет, что несколько броней могут быть созданы и все корректно сохранены в БД.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task CreateAsync_MultipleBookings_AllPersisted()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync(totalSeats: 5);
+        var bookings = Enumerable.Range(1, 5)
+            .Select(_ => Booking.CreatePending(@event.Id))
+            .ToList();
+
+        // Act
+        var results = new List<Booking>();
+        foreach (var booking in bookings)
+        {
+            results.Add(await _bookingRepository.CreateAsync(booking, CancellationToken.None));
+        }
+
+        // Assert
+        Assert.Equal(5, results.Count);
+        Assert.All(results, r => Assert.NotEqual(Guid.Empty, r.Id));
+        Assert.All(results, r => Assert.Equal(@event.Id, r.EventId));
+    }
+
+    #endregion
+
+    #region GetByIdAsync Tests
+
+    /// <summary>
+    /// Проверяет, что брони могут быть получены по идентификатору и содержат корректные данные.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetByIdAsync_WithExistingId_ReturnsBooking()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync();
+        var booking = Booking.CreatePending(@event.Id);
+        var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
+
+        // Act
+        var result = await _bookingRepository.GetByIdAsync(created.Id, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(created.Id, result.Id);
+        Assert.Equal(created.EventId, result.EventId);
+        Assert.Equal(BookingStatus.Pending, result.Status);
+    }
+
+    /// <summary>
+    /// Проверяет, что при запросе несуществующей брони возвращается null.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetByIdAsync_WithNonExistentId_ReturnsNull()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var nonExistentId = Guid.NewGuid();
+
+        // Act
+        var result = await _bookingRepository.GetByIdAsync(nonExistentId, CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Проверяет, что изменение статуса брони сохраняется и отражается при повторном получении.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetByIdAsync_AfterStatusChange_ReturnsUpdatedStatus()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync();
+        var booking = Booking.CreatePending(@event.Id);
+        var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
+
+        // Изменяем статус и сохраняем
+        created.Confirm();
+        await _bookingRepository.SaveChangesAsync(CancellationToken.None);
+
+        // Act
+        var result = await _bookingRepository.GetByIdAsync(created.Id, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Confirmed, result.Status);
+        Assert.NotNull(result.ProcessedAt);
+    }
+
+    #endregion
+
+    #region GetEventByIdAsync Tests
+
+    /// <summary>
+    /// Проверяет, что событие может быть получено по идентификатору через репозиторий броней.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetEventByIdAsync_WithExistingEventId_ReturnsEvent()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync();
+
+        // Act
+        var result = await _bookingRepository.GetEventByIdAsync(@event.Id, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(@event.Id, result.Id);
+        Assert.Equal(@event.Title, result.Title);
+    }
+
+    /// <summary>
+    /// Проверяет, что при запросе несуществующего события возвращается null.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetEventByIdAsync_WithNonExistentEventId_ReturnsNull()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var nonExistentId = Guid.NewGuid();
+
+        // Act
+        var result = await _bookingRepository.GetEventByIdAsync(nonExistentId, CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Проверяет, что количество доступных мест события корректно отражает зарезервированные места.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetEventByIdAsync_ReturnsEventWithCorrectAvailableSeats()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync(totalSeats: 10);
+        var booking = Booking.CreatePending(@event.Id);
+        await _bookingRepository.CreateAsync(booking, CancellationToken.None);
+
+        @event.TryReserveSeats();
+        await _eventRepository.UpdateAsync(@event.Id, @event, CancellationToken.None);
+
+        // Act
+        var result = await _bookingRepository.GetEventByIdAsync(@event.Id, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(9, result.AvailableSeats);
+    }
+
+    #endregion
+
+    #region GetPendingBookingIdsAsync Tests
+
+    /// <summary>
+    /// Проверяет, что при отсутствии ожидающих броней возвращается пустой список.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetPendingBookingIdsAsync_WithNoPendingBookings_ReturnsEmptyList()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+
+        // Act
+        var result = await _bookingRepository.GetPendingBookingIdsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    /// <summary>
+    /// Проверяет, что все ID ожидающих броней возвращаются корректно.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetPendingBookingIdsAsync_WithMultiplePendingBookings_ReturnsAllIds()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync(totalSeats: 5);
+        var bookingIds = new List<Guid>();
+
+        for (int i = 0; i < 3; i++)
+        {
+            var booking = Booking.CreatePending(@event.Id);
+            var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
+            bookingIds.Add(created.Id);
+        }
+
+        // Act
+        var result = await _bookingRepository.GetPendingBookingIdsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Equal(3, result.Count);
+        Assert.Equal(bookingIds.OrderBy(x => x), result.OrderBy(x => x));
+    }
+
+    /// <summary>
+    /// Проверяет, что в результат включаются только брони со статусом Pending, остальные игнорируются.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task GetPendingBookingIdsAsync_IgnoresNonPendingBookings()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync(totalSeats: 5);
+
+        // Создаём pending бронь
+        var pendingBooking = Booking.CreatePending(@event.Id);
+        var createdPending = await _bookingRepository.CreateAsync(pendingBooking, CancellationToken.None);
+
+        // Создаём и подтверждаем бронь
+        var confirmedBooking = Booking.CreatePending(@event.Id);
+        var createdConfirmed = await _bookingRepository.CreateAsync(confirmedBooking, CancellationToken.None);
+        createdConfirmed.Confirm();
+        await _bookingRepository.SaveChangesAsync(CancellationToken.None);
+
+        // Создаём и отклоняем бронь
+        var rejectedBooking = Booking.CreatePending(@event.Id);
+        var createdRejected = await _bookingRepository.CreateAsync(rejectedBooking, CancellationToken.None);
+        createdRejected.Reject();
+        await _bookingRepository.SaveChangesAsync(CancellationToken.None);
+
+        // Act
+        var result = await _bookingRepository.GetPendingBookingIdsAsync(CancellationToken.None);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(createdPending.Id, result.First());
+    }
+
+    #endregion
+
+    #region SaveChangesAsync Tests
+
+    /// <summary>
+    /// Проверяет, что изменения в объектах броней корректно сохраняются в БД.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task SaveChangesAsync_PersistsChanges()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync();
+        var booking = Booking.CreatePending(@event.Id);
+        var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
+
+        // Act
+        created.Confirm();
+        await _bookingRepository.SaveChangesAsync(CancellationToken.None);
+
+        // Verify by fetching fresh instance
+        var result = await _bookingRepository.GetByIdAsync(created.Id, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Confirmed, result.Status);
+        Assert.NotNull(result.ProcessedAt);
+    }
+
+    /// <summary>
+    /// Проверяет, что несколько изменений разных броней сохраняются одновременно и корректно.
+    /// </summary>
+    [Fact]
+    [Trait("Category", "BookingRepository")]
+    public async Task SaveChangesAsync_WithMultipleChanges_AllPersisted()
+    {
+        // Arrange
+        await ResetDatabaseAsync();
+        var @event = await CreateTestEventAsync(totalSeats: 3);
+
+        // Создаём три брони
+        var booking1 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id), CancellationToken.None);
+        var booking2 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id), CancellationToken.None);
+        var booking3 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id), CancellationToken.None);
+
+        // Act
+        booking1.Confirm();
+        booking2.Reject();
+        booking3.Confirm();
+        await _bookingRepository.SaveChangesAsync(CancellationToken.None);
+
+        // Assert
+        var result1 = await _bookingRepository.GetByIdAsync(booking1.Id, CancellationToken.None);
+        var result2 = await _bookingRepository.GetByIdAsync(booking2.Id, CancellationToken.None);
+        var result3 = await _bookingRepository.GetByIdAsync(booking3.Id, CancellationToken.None);
+
+        Assert.Equal(BookingStatus.Confirmed, result1!.Status);
+        Assert.Equal(BookingStatus.Rejected, result2!.Status);
+        Assert.Equal(BookingStatus.Confirmed, result3!.Status);
+    }
+
+    #endregion
+}

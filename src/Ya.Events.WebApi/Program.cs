@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Ya.Events.WebApi.DataAccess;
 using Ya.Events.WebApi.Extensions;
 using Ya.Events.WebApi.Interfaces;
+using Ya.Events.WebApi.Repositories;
 using Ya.Events.WebApi.Services;
 using Ya.Events.WebApi.Services.BackgroundServices;
 
@@ -15,6 +16,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
 
@@ -26,7 +29,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // Конфигурация Swagger для разработки.
@@ -41,8 +44,5 @@ app.UseGlobalExceptionHandling();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
-
-// Определяем минимальные API
-app.MapGet("/hello", () => "Hello World");
 
 app.Run();

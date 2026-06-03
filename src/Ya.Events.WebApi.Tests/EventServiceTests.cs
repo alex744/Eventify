@@ -4,6 +4,7 @@ using Ya.Events.WebApi.DataAccess;
 using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
+using Ya.Events.WebApi.Repositories;
 using Ya.Events.WebApi.Services;
 
 namespace Ya.Events.WebApi.Tests;
@@ -19,6 +20,7 @@ public sealed class EventServiceTests : IDisposable
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IEventService, EventService>();
 
         _serviceProvider = services.BuildServiceProvider();

@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="Ya.Events.WebApi.E2ETests/Ya.Events.WebApi.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
+  <Project Path="Ya.Events.WebApi.IntegrationTests/Ya.Events.WebApi.IntegrationTests.csproj" Id="bae72fc6-f7c0-4079-88b5-325b5618b7ce" />
   <Project Path="Ya.Events.WebApi.Tests/Ya.Events.WebApi.Tests.csproj" Id="26c1b9c4-cfd1-4ca3-aa2e-4aab2fdb3da4" />
   <Project Path="Ya.Events.WebApi/Ya.Events.WebApi.csproj" Id="585bb791-9126-45c7-b344-c9049aff1c38" />
 </Solution>

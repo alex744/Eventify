@@ -5,6 +5,7 @@ using Ya.Events.WebApi.Enums;
 using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
+using Ya.Events.WebApi.Repositories;
 using Ya.Events.WebApi.Services;
 
 namespace Ya.Events.WebApi.Tests;
@@ -21,6 +22,8 @@ public sealed class BookingServiceTests : IDisposable
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IBookingService, BookingService>();
 
@@ -203,11 +206,14 @@ public sealed class BookingServiceTests : IDisposable
         Assert.NotNull(firstBooking);
 
         // Имитация обработки в фоне: бронь отклоняется, место освобождается
-        var eventInfo = await _eventService.GetByIdAsync(eventId, ct);
+        var context = _scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var eventInfo = await context.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
         if (eventInfo is not null)
         {
             firstBooking.Reject();
             eventInfo.ReleaseSeats();
+            await context.SaveChangesAsync(ct);
         }
 
         // Act
