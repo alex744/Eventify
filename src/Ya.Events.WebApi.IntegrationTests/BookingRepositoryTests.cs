@@ -1,56 +1,23 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
-using Ya.Events.WebApi.DataAccess;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Ya.Events.WebApi.Enums;
+using Ya.Events.WebApi.IntegrationTests.Fixtures;
 using Ya.Events.WebApi.Models;
 using Ya.Events.WebApi.Repositories;
 
 namespace Ya.Events.WebApi.IntegrationTests;
 
-public sealed class BookingRepositoryTests : IAsyncLifetime
+[Collection("PostgreSQL collection")]
+public sealed class BookingRepositoryTests
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
-        .WithDatabase("testdb")
-        .Build();
+    private readonly PostgreSqlFixture _fixture;
+    private readonly IBookingRepository _bookingRepository;
+    private readonly IEventRepository _eventRepository;
 
-    private IServiceProvider _serviceProvider = null!;
-    private IBookingRepository _bookingRepository = null!;
-    private IEventRepository _eventRepository = null!;
-
-    public async ValueTask InitializeAsync()
+    public BookingRepositoryTests(PostgreSqlFixture fixture)
     {
-        await _postgres.StartAsync();
-
-        var services = new ServiceCollection();
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
-        services.AddScoped<IBookingRepository, BookingRepository>();
-        services.AddScoped<IEventRepository, EventRepository>();
-
-        _serviceProvider = services.BuildServiceProvider();
-        _bookingRepository = _serviceProvider.GetRequiredService<IBookingRepository>();
-        _eventRepository = _serviceProvider.GetRequiredService<IEventRepository>();
-
-        // Инициализируем БД с миграциями
-        using var scope = _serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context.Database.MigrateAsync();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await _postgres.DisposeAsync();
-    }
-
-    /// <summary>
-    /// Подготавливает БД к новому тесту: очищает таблицы и сбрасывает identity.
-    /// </summary>
-    private async Task ResetDatabaseAsync()
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context.Database.ExecuteSqlRawAsync(
-            "TRUNCATE TABLE events, bookings RESTART IDENTITY CASCADE");
+        _fixture = fixture;
+        _bookingRepository = fixture.ServiceProvider.GetRequiredService<IBookingRepository>();
+        _eventRepository = fixture.ServiceProvider.GetRequiredService<IEventRepository>();
     }
 
     /// <summary>
@@ -77,7 +44,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task CreateAsync_WithValidBooking_ReturnsCreatedBooking()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync();
         var booking = Booking.CreatePending(@event.Id);
 
@@ -99,7 +66,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task CreateAsync_MultipleBookings_AllPersisted()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync(totalSeats: 5);
         var bookings = Enumerable.Range(1, 5)
             .Select(_ => Booking.CreatePending(@event.Id))
@@ -130,7 +97,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetByIdAsync_WithExistingId_ReturnsBooking()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync();
         var booking = Booking.CreatePending(@event.Id);
         var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
@@ -153,7 +120,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetByIdAsync_WithNonExistentId_ReturnsNull()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var nonExistentId = Guid.NewGuid();
 
         // Act
@@ -171,7 +138,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetByIdAsync_AfterStatusChange_ReturnsUpdatedStatus()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync();
         var booking = Booking.CreatePending(@event.Id);
         var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
@@ -201,7 +168,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetEventByIdAsync_WithExistingEventId_ReturnsEvent()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync();
 
         // Act
@@ -221,7 +188,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetEventByIdAsync_WithNonExistentEventId_ReturnsNull()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var nonExistentId = Guid.NewGuid();
 
         // Act
@@ -239,7 +206,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetEventByIdAsync_ReturnsEventWithCorrectAvailableSeats()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync(totalSeats: 10);
         var booking = Booking.CreatePending(@event.Id);
         await _bookingRepository.CreateAsync(booking, CancellationToken.None);
@@ -267,7 +234,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetPendingBookingIdsAsync_WithNoPendingBookings_ReturnsEmptyList()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
 
         // Act
         var result = await _bookingRepository.GetPendingBookingIdsAsync(CancellationToken.None);
@@ -284,7 +251,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetPendingBookingIdsAsync_WithMultiplePendingBookings_ReturnsAllIds()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync(totalSeats: 5);
         var bookingIds = new List<Guid>();
 
@@ -311,7 +278,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task GetPendingBookingIdsAsync_IgnoresNonPendingBookings()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync(totalSeats: 5);
 
         // Создаём pending бронь
@@ -350,7 +317,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task SaveChangesAsync_PersistsChanges()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync();
         var booking = Booking.CreatePending(@event.Id);
         var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
@@ -376,7 +343,7 @@ public sealed class BookingRepositoryTests : IAsyncLifetime
     public async Task SaveChangesAsync_WithMultipleChanges_AllPersisted()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var @event = await CreateTestEventAsync(totalSeats: 3);
 
         // Создаём три брони

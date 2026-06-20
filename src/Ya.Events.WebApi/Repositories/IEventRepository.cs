@@ -14,6 +14,6 @@ public interface IEventRepository
         CancellationToken ct = default);
     Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Event> CreateAsync(Event entity, CancellationToken ct = default);
-    Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default);
-    Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task<Event?> UpdateAsync(Guid id, Event entity, CancellationToken ct = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken ct = default);
 }

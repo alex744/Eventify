@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Ya.Events.WebApi.DataAccess;
 using Ya.Events.WebApi.DTOs.Responses;
-using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Models;
 
 namespace Ya.Events.WebApi.Repositories;
@@ -24,11 +23,6 @@ public class EventRepository : IEventRepository
         CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-
-        if (from.HasValue && to.HasValue && from.Value > to.Value)
-        {
-            throw new ArgumentException("Дата начала (from) не может быть позже даты окончания (to).");
-        }
 
         var query = _context.Events.AsNoTracking();
 
@@ -72,11 +66,11 @@ public class EventRepository : IEventRepository
         return entity;
     }
 
-    public async Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default)
+    public async Task<Event?> UpdateAsync(Guid id, Event entity, CancellationToken ct = default)
     {
         var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (existing is null)
-            throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
+            return null;
 
         existing.Title = entity.Title;
         existing.StartAt = entity.StartAt;
@@ -88,13 +82,14 @@ public class EventRepository : IEventRepository
         return existing;
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id, ct);
         if (existing is null)
-            throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
+            return false;
 
         _context.Events.Remove(existing);
-        await _context.SaveChangesAsync(ct);
+        int rowsAffected = await _context.SaveChangesAsync(ct);
+        return rowsAffected > 0;
     }
 }

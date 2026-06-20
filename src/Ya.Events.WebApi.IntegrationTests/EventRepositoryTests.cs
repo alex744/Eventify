@@ -1,53 +1,20 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
-using Ya.Events.WebApi.DataAccess;
-using Ya.Events.WebApi.Exceptions;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Ya.Events.WebApi.IntegrationTests.Fixtures;
 using Ya.Events.WebApi.Models;
 using Ya.Events.WebApi.Repositories;
 
 namespace Ya.Events.WebApi.IntegrationTests;
 
-public sealed class EventRepositoryTests : IAsyncLifetime
+[Collection("PostgreSQL collection")]
+public sealed class EventRepositoryTests
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")
-        .WithDatabase("testdb")
-        .Build();
+    private readonly PostgreSqlFixture _fixture;
+    private readonly IEventRepository _eventRepository;
 
-    private IServiceProvider _serviceProvider = null!;
-    private IEventRepository _eventRepository = null!;
-
-    public async ValueTask InitializeAsync()
+    public EventRepositoryTests(PostgreSqlFixture fixture)
     {
-        await _postgres.StartAsync();
-
-        var services = new ServiceCollection();
-        services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
-        services.AddScoped<IEventRepository, EventRepository>();
-
-        _serviceProvider = services.BuildServiceProvider();
-        _eventRepository = _serviceProvider.GetRequiredService<IEventRepository>();
-
-        // Инициализируем БД с миграциями
-        using var scope = _serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context.Database.MigrateAsync();
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        await _postgres.DisposeAsync();
-    }
-
-    /// <summary>
-    /// Подготавливает БД к новому тесту: очищает таблицы и сбрасывает identity.
-    /// </summary>
-    private async Task ResetDatabaseAsync()
-    {
-        using var scope = _serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await context.Database.ExecuteSqlRawAsync(
-            "TRUNCATE TABLE events, bookings RESTART IDENTITY CASCADE");
+        _fixture = fixture;
+        _eventRepository = fixture.ServiceProvider.GetRequiredService<IEventRepository>();
     }
 
     #region CreateAsync Tests
@@ -60,7 +27,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task CreateAsync_WithValidEvent_ReturnsCreatedEvent()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var @event = new Event(
             title: "Test Event",
@@ -89,7 +56,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task CreateAsync_MultipleEvents_AllPersisted()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var events = Enumerable.Range(1, 5)
             .Select(i => new Event(
@@ -125,7 +92,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetByIdAsync_WithExistingId_ReturnsEvent()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var @event = new Event(
             title: "Existing Event",
@@ -152,7 +119,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetByIdAsync_WithNonExistentId_ReturnsNull()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var nonExistentId = Guid.NewGuid();
 
         // Act
@@ -174,7 +141,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_WithEmptyDatabase_ReturnsEmptyResult()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
 
         // Act
         var result = await _eventRepository.GetAllAsync(ct: CancellationToken.None);
@@ -195,7 +162,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_WithMultipleEvents_ReturnsAll()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         for (int i = 1; i <= 5; i++)
         {
@@ -223,7 +190,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_WithTitleFilter_ReturnsMatchingEvents()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         await _eventRepository.CreateAsync(new Event(
             title: "Conference 2024",
@@ -254,7 +221,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_WithTitleFilter_CaseInsensitive()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         await _eventRepository.CreateAsync(new Event(
             title: "UPPERCASE EVENT",
@@ -280,7 +247,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_WithDateRangeFilter_ReturnsEventsInRange()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var baseDate = DateTime.UtcNow.Date.AddDays(1);
 
         // Событие ДО диапазона
@@ -321,20 +288,23 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Проверяет, что передача дат в неправильном порядке (from > to) выбрасывает исключение.
+    /// Проверяет, что передача дат в неправильном порядке (from > to) не возвращает событий.
     /// </summary>
     [Fact]
     [Trait("Category", "EventRepository")]
-    public async Task GetAllAsync_WithInvalidDateRange_ThrowsException()
+    public async Task GetAllAsync_WithInvalidDateRange_ReturnsNoEvents()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var from = DateTime.UtcNow.AddDays(10);
         var to = DateTime.UtcNow.AddDays(1);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            _eventRepository.GetAllAsync(from: from, to: to, ct: CancellationToken.None));
+        // Act
+        var result = await _eventRepository.GetAllAsync(from: from, to: to, ct: CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Empty(result.Items);
     }
 
     /// <summary>
@@ -345,7 +315,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_WithPagination_ReturnsCorrectPage()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         for (int i = 1; i <= 25; i++)
         {
@@ -377,7 +347,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task GetAllAsync_SortedByDateDescending()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var baseDate = DateTime.UtcNow.AddDays(1);
         for (int i = 1; i <= 5; i++)
         {
@@ -409,7 +379,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task UpdateAsync_WithValidData_UpdatesEvent()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var @event = new Event(
             title: "Original Title",
@@ -430,21 +400,21 @@ public sealed class EventRepositoryTests : IAsyncLifetime
         var result = await _eventRepository.UpdateAsync(created.Id, updated, CancellationToken.None);
 
         // Assert
-        Assert.Equal(created.Id, result.Id);
-        Assert.Equal("Updated Title", result.Title);
-        Assert.Equal(100, result.TotalSeats);
-        Assert.Equal(futureDate.AddDays(1), result.StartAt);
+        Assert.Equal(created.Id, result!.Id);
+        Assert.Equal("Updated Title", result!.Title);
+        Assert.Equal(100, result!.TotalSeats);
+        Assert.Equal(futureDate.AddDays(1), result!.StartAt);
     }
 
     /// <summary>
-    /// Проверяет, что обновление несуществующего события выбрасывает NotFoundException.
+    /// Проверяет, что обновление несуществующего события возвращает null.
     /// </summary>
     [Fact]
     [Trait("Category", "EventRepository")]
-    public async Task UpdateAsync_WithNonExistentId_ThrowsNotFoundException()
+    public async Task UpdateAsync_WithNonExistentId_ReturnsNull()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var nonExistentId = Guid.NewGuid();
         var updated = new Event(
             title: "Updated",
@@ -453,9 +423,11 @@ public sealed class EventRepositoryTests : IAsyncLifetime
             totalSeats: 50
         );
 
-        // Act & Assert
-        await Assert.ThrowsAsync<NotFoundException>(() =>
-            _eventRepository.UpdateAsync(nonExistentId, updated, CancellationToken.None));
+        // Act
+        var result = await _eventRepository.UpdateAsync(nonExistentId, updated, CancellationToken.None);
+
+        // Assert
+        Assert.Null(result);
     }
 
     /// <summary>
@@ -466,7 +438,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task UpdateAsync_PreservesId_AndCreatedAtMetadata()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var @event = new Event(
             title: "Original",
@@ -488,7 +460,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
         var result = await _eventRepository.UpdateAsync(originalId, updated, CancellationToken.None);
 
         // Assert
-        Assert.Equal(originalId, result.Id);
+        Assert.Equal(originalId, result!.Id);
     }
 
     #endregion
@@ -503,7 +475,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task DeleteAsync_WithExistingId_RemovesEvent()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var @event = new Event(
             title: "To Delete",
@@ -522,19 +494,21 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Проверяет, что удаление несуществующего события выбрасывает NotFoundException.
+    /// Проверяет, что удаление несуществующего события возвращает false.
     /// </summary>
     [Fact]
     [Trait("Category", "EventRepository")]
-    public async Task DeleteAsync_WithNonExistentId_ThrowsNotFoundException()
+    public async Task DeleteAsync_WithNonExistentId_ReturnsFalse()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var nonExistentId = Guid.NewGuid();
 
-        // Act & Assert
-        await Assert.ThrowsAsync<NotFoundException>(() =>
-            _eventRepository.DeleteAsync(nonExistentId, CancellationToken.None));
+        // Act
+        bool result = await _eventRepository.DeleteAsync(nonExistentId, CancellationToken.None);
+
+        // Assert
+        Assert.False(result);
     }
 
     #endregion
@@ -549,7 +523,7 @@ public sealed class EventRepositoryTests : IAsyncLifetime
     public async Task SaveChangesAsync_PersistsChanges()
     {
         // Arrange
-        await ResetDatabaseAsync();
+        await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var @event = new Event(
             title: "Test Event",

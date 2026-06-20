@@ -97,11 +97,11 @@ dotnet ef database drop --force
 Пример настройки контекста в юнит-тестах:
 
 ```csharp
-var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+var options = new DbContextOptionsBuilder<AppDbContext>()
     .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
     .Options;
 
-using var context = new ApplicationDbContext(options);
+using var context = new AppDbContext(options);
 ```
 
 Каждый тест создаёт отдельную базу данных в памяти, которая удаляется после завершения теста.

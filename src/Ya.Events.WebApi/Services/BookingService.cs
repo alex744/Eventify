@@ -41,6 +41,9 @@ public class BookingService : IBookingService
             var booking = Booking.CreatePending(eventId);
             await _repository.CreateAsync(booking, ct);
 
+            // 4. Сохраняем изменения события в базе данных
+            await _repository.SaveChangesAsync(ct);
+
             return booking;
         }
         finally

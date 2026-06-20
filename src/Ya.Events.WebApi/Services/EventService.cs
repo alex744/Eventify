@@ -1,4 +1,5 @@
 ﻿using Ya.Events.WebApi.DTOs.Responses;
+using Ya.Events.WebApi.Exceptions;
 using Ya.Events.WebApi.Interfaces;
 using Ya.Events.WebApi.Models;
 using Ya.Events.WebApi.Repositories;
@@ -22,6 +23,10 @@ public class EventService : IEventService
         int pageSize = 10,
         CancellationToken ct = default)
     {
+        // Валидация диапазона дат — бизнес-правило
+        if (from.HasValue && to.HasValue && from.Value > to.Value)
+            throw new ArgumentException("Дата начала (from) не может быть позже даты окончания (to).");
+
         return await _repository.GetAllAsync(title, from, to, page, pageSize, ct);
     }
 
@@ -37,11 +42,19 @@ public class EventService : IEventService
 
     public async Task<Event> UpdateAsync(Guid id, Event entity, CancellationToken ct = default)
     {
-        return await _repository.UpdateAsync(id, entity, ct);
+        var existing = await _repository.UpdateAsync(id, entity, ct);
+        if (existing is null)
+            throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
+
+        return existing;
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
+        var existing = await _repository.GetByIdAsync(id, ct);
+        if (existing is null)
+            throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
+
         await _repository.DeleteAsync(id, ct);
     }
 }
