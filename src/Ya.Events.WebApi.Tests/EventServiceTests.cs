@@ -1,11 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Ya.Events.WebApi.DataAccess;
-using Ya.Events.WebApi.Exceptions;
-using Ya.Events.WebApi.Interfaces;
-using Ya.Events.WebApi.Models;
-using Ya.Events.WebApi.Repositories;
-using Ya.Events.WebApi.Services;
+using Ya.Events.Application.Abstractions.Persistence.Repositories;
+using Ya.Events.Application.Abstractions.Services;
+using Ya.Events.Application.Services;
+using Ya.Events.Domain.Entities;
+using Ya.Events.Domain.Exceptions;
+using Ya.Events.Infrastructure.Persistence;
+using Ya.Events.Infrastructure.Repositories;
 
 namespace Ya.Events.WebApi.Tests;
 

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Ya.Events.WebApi.DataAccess;
+using Ya.Events.Infrastructure.Persistence;
 using Ya.Events.WebApi.IntegrationTests.Fixtures;
 
 namespace Ya.Events.WebApi.IntegrationTests;

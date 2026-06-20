@@ -1,4 +1,4 @@
-﻿using Ya.Events.WebApi.Models;
+﻿using Ya.Events.Domain.Entities;
 
 namespace Ya.Events.WebApi.Tests;
 

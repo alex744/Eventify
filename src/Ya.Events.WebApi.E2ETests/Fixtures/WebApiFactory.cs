@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
-using Ya.Events.WebApi.DataAccess;
+using Ya.Events.Infrastructure.Persistence;
 
 namespace Ya.Events.WebApi.IntegrationTests.Fixtures;
 

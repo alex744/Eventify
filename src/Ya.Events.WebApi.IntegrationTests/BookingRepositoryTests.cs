@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Ya.Events.WebApi.Enums;
+using Ya.Events.Application.Abstractions.Persistence.Repositories;
+using Ya.Events.Domain.Entities;
+using Ya.Events.Domain.ValueObjects;
 using Ya.Events.WebApi.IntegrationTests.Fixtures;
-using Ya.Events.WebApi.Models;
-using Ya.Events.WebApi.Repositories;
 
 namespace Ya.Events.WebApi.IntegrationTests;
 

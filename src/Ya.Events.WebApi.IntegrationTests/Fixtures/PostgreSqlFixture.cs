@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
-using Ya.Events.WebApi.DataAccess;
-using Ya.Events.WebApi.Repositories;
+using Ya.Events.Application.Abstractions.Persistence.Repositories;
+using Ya.Events.Infrastructure.Persistence;
+using Ya.Events.Infrastructure.Repositories;
 
 namespace Ya.Events.WebApi.IntegrationTests.Fixtures;
 
