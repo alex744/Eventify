@@ -8,6 +8,167 @@
 - [PostgreSQL](https://www.postgresql.org/download/) (версия 16 или выше)
 - [Docker](https://www.docker.com/)
 
+## Структура проекта
+
+Проект построен на основе **многослойной архитектуры (Clean/Layered Architecture)**, что обеспечивает разделение ответственности и облегчает тестирование.
+
+### Архитектурные слои
+
+- **WebApi** — внешний уровень, обрабатывающий HTTP-запросы и отвечающий клиенту (включает контроллеры, модели представлений, модули Swagger).
+- **Application** — уровень бизнес-логики, обрабатывающий запросы от WebApi и взаимодействующий с уровнем инфраструктуры (включает сервисы, интерфейсы репозиториев, модели запросов/ответов).
+- **Infrastructure** — уровень, отвечающий за взаимодействие с внешними системами (например, БД, файловая система), реализация интерфейсов из уровня Application (включает контекст базы данных, реализации репозиториев, миграции EF Core).
+- **Domain** — уровень, содержащий доменные модели и бизнес-правила, не зависящие от деталей реализации (включает сущности, перечисления, доменные исключения).
+
+**Правило:** Верхние слои зависят от нижних, но не наоборот.
+- `Presentation` зависит от `Application` и `Infrastructure`
+- `Application` зависит от `Domain`
+- `Infrastructure` зависит от `Application` и `Domain`
+- `Domain` не зависит ни от чего
+
+---
+
+## Описание каждого слоя
+
+#### 1. **Presentation Layer** (`Ya.Events.WebApi`)
+**Назначение:** Слой взаимодействия с клиентом. Обработка HTTP-запросов и ответов.
+
+**Содержит:**
+- `Controllers/` — REST API контроллеры (`EventsController`, `BookingsController`)
+  - Валидация входных данных
+  - Обработка HTTP-методов (GET, POST, PUT, DELETE)
+  - Возврат стандартизованных ответов с правильными статус-кодами
+- `Middleware/` — промежуточные компоненты конвейера запросов
+  - `GlobalExceptionHandlingMiddleware` — глобальная обработка исключений
+- `Program.cs` — конфигурация приложения и DI контейнер
+- `appsettings.json` — конфигурация для среды выполнения
+
+**Ответственность:** Только за приём/отправку данных, валидацию и маршрутизацию.
+
+---
+
+#### 2. **Application Layer** (`Ya.Events.Application`)
+**Назначение:** Слой бизнес-логики и оркестрации процессов. Реализует основные сценарии использования (use cases).
+
+**Содержит:**
+- `Services/` — сервисы бизнес-логики
+  - `EventService` — управление событиями (CRUD)
+  - `BookingService` — управление бронированиями, включая синхронизацию  
+- `DTOs/` — Data Transfer Objects для передачи данных
+  - `Bookings/` — объекты для бронирований
+  - `Events/` — объекты для событий
+  - `PaginatedResult` — результат с пагинацией
+- Реализация правил валидации и бизнес-правил
+- Управление транзакциями и координацией между репозиториями
+- Использование примитивов синхронизации (`SemaphoreSlim`) для предотвращения race conditions
+
+**Ответственность:** Бизнес-логика, оркестрация работы с данными, обработка доменных событий.
+
+---
+
+#### 3. **Domain Layer** (`Ya.Events.Domain`)
+**Назначение:** Ядро приложения. Содержит доменные модели и бизнес-правила, не зависящие от деталей реализации.
+
+**Содержит:**
+- `Entities/` — доменные сущности (модели данных)
+  - `Event` — событие с валидацией
+  - `Booking` — бронирование с управлением статусом
+- `ValueObjects/` — перечисления (`BookingStatus`)
+- `Exceptions/` — доменные исключения
+  - `BookingNotPendingException` — попытка подтвердить несуществующую или уже обработанную бронь
+  - `NoAvailableSeatsException` — нет свободных мест
+  - `NotFoundException` — событие не найдено
+- Валидация на уровне доменной логики
+
+**Ответственность:** Определение сущностей и их правил, не зависит от инфраструктуры.
+
+---
+
+#### 4. **Infrastructure Layer** (`Ya.Events.Infrastructure`)
+**Назначение:** Реализация механизмов доступа к данным, работа с внешними сервисами.
+
+**Содержит:**
+- `Persistence/` — контекст БД и конфигурация
+  - `AppDbContext` — Entity Framework Core контекст
+  - `Configurations/` — Конфигурации сущностей (Fluent API)
+- `Repositories/` — реализация паттерна Repository
+  - `EventRepository` — операции с событиями в БД
+  - `BookingRepository` — операции с бронированиями в БД
+- `Migrations/` — EF Core миграции для управления схемой БД
+- `Services` — реализация фоновых сервисов
+  - `BookingProcessingService` — фоновая обработка бронирований  
+- `DependencyInjection.cs` — регистрация сервисов инфраструктуры в DI контейнере
+
+**Ответственность:** Работа с базой данных, реализация интерфейсов репозиториев, миграции.
+
+---
+
+#### 5. **Test Projects**
+
+##### 5.1 **Unit Tests** (`Ya.Events.WebApi.Tests`)
+**Назначение:** Тестирование отдельных компонентов в изоляции.
+
+**Используемые технологии:**
+- xUnit — фреймворк для тестирования
+- Moq — создание mock-объектов
+- EF Core InMemory — имитация БД в памяти
+
+**Структура:**
+- `EventServiceTests` — тесты сервиса событий
+- `BookingServiceTests` — тесты сервиса бронирований
+- `EventTests` — тесты доменной логики Event
+
+**Характеристики:**
+- Быстрое выполнение (нет зависимостей от внешних сервисов)
+- Каждый тест изолирован от других
+- Проверяют бизнес-логику без БД
+
+##### 5.2 **Integration Tests** (`Ya.Events.WebApi.IntegrationTests`)
+**Назначение:** Тестирование взаимодействия компонентов с реальной БД.
+
+**Используемые технологии:**
+- xUnit
+- Testcontainers.PostgreSql — автоматическое создание контейнера PostgreSQL
+- Docker — требуется для запуска контейнеров
+
+**Структура:**
+- `BookingRepositoryTests` — тесты репозитория броней с реальной БД
+- `EventRepositoryTests` — тесты репозитория событий
+- `DatabaseTests` — тесты миграций и схемы БД
+
+**Характеристики:**
+- Используют реальную PostgreSQL (в Docker контейнере)
+- Проверяют взаимодействие с БД
+- Медленнее unit-тестов, но находят проблемы с БД
+
+##### 5.3 **E2E Tests** (`Ya.Events.WebApi.E2ETests`)
+**Назначение:** Тестирование полного цикла от HTTP-запроса до ответа.
+
+**Используемые технологии:**
+- xUnit
+- WebApplicationFactory — создание тестового приложения
+- HttpClient — отправка реальных HTTP-запросов
+
+**Структура:**
+- `BookingControllerTests` — тесты контроллера бронирований
+
+**Характеристики:**
+- Тестируют API эндпоинты как чёрный ящик
+- Проверяют интеграцию всех слоёв
+- Самые медленные, но наиболее близки к реальному использованию
+
+---
+
+### Поток данных при запросе
+
+1. **HTTP запрос** поступает в `Controller` (`Presentation Layer`)
+2. **Controller** валидирует данные и преобразует их в DTO
+3. **Controller** вызывает метод `Service` (`Application Layer`)
+4. **Service** применяет бизнес-логику и правила валидации
+5. **Service** вызывает `Repository` (`Infrastructure Layer`)
+6. **Repository** выполняет операцию с БД через `DbContext`
+7. **БД** возвращает данные
+8. Данные проходят обратно через слои: Repository → Service → DTO → HTTP Response
+
 ## Настройка строки подключения к PostgreSQL
 
 1. Создайте файл `appsettings.json` (если его нет) в проекте `Ya.Events.WebApi` или добавьте секцию в существующий файл:
@@ -54,7 +215,7 @@ dotnet tool install --global dotnet-ef
 Для применения миграций к базе данных PostgreSQL:
 
 ```bash
-cd src/Ya.Events.WebApi
+cd src/Ya.Events.Infrastructure
 
 # Примените все Pending миграции
 dotnet ef database update
@@ -65,7 +226,7 @@ dotnet ef database update
 При изменении моделей (Event, Booking) создайте новую миграцию:
 
 ```bash
-cd src/Ya.Events.WebApi
+cd src/Ya.Events.Infrastructure
 
 # Создайте миграцию с описательным именем
 dotnet ef migrations add AddFieldNameValidation
@@ -76,7 +237,7 @@ dotnet ef migrations add AddFieldNameValidation
 Для отката на одну миграцию назад:
 
 ```bash
-cd src/Ya.Events.WebApi
+cd src/Ya.Events.Infrastructure
 dotnet ef database update --target PreviousMigrationName
 ```
 
@@ -97,11 +258,11 @@ dotnet ef database drop --force
 Пример настройки контекста в юнит-тестах:
 
 ```csharp
-var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+var options = new DbContextOptionsBuilder<AppDbContext>()
     .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
     .Options;
 
-using var context = new ApplicationDbContext(options);
+using var context = new AppDbContext(options);
 ```
 
 Каждый тест создаёт отдельную базу данных в памяти, которая удаляется после завершения теста.
@@ -178,7 +339,7 @@ dotnet add package Testcontainers.PostgreSql
 
 4. Примените существующие миграции к базе данных:
    ```bash
-   cd Ya.Events.WebApi
+   cd Ya.Events.Infrastructure
    dotnet ef database update
    ```
 

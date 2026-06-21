@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using Ya.Events.WebApi.Exceptions;
+using Ya.Events.Domain.Exceptions;
 
 namespace Ya.Events.WebApi.Middleware;
 

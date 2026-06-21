@@ -1,4 +1,7 @@
 <Solution>
+  <Project Path="Ya.Events.Application/Ya.Events.Application.csproj" Id="3fcb2d49-0b07-42e5-88b1-12f4056245f7" />
+  <Project Path="Ya.Events.Domain/Ya.Events.Domain.csproj" Id="cef79d17-5b6c-478a-8f5d-dad18630ca49" />
+  <Project Path="Ya.Events.Infrastructure/Ya.Events.Infrastructure.csproj" Id="698ab7f0-1496-48d9-9090-865e4832bf4a" />
   <Project Path="Ya.Events.WebApi.E2ETests/Ya.Events.WebApi.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
   <Project Path="Ya.Events.WebApi.IntegrationTests/Ya.Events.WebApi.IntegrationTests.csproj" Id="bae72fc6-f7c0-4079-88b5-325b5618b7ce" />
   <Project Path="Ya.Events.WebApi.Tests/Ya.Events.WebApi.Tests.csproj" Id="26c1b9c4-cfd1-4ca3-aa2e-4aab2fdb3da4" />

@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using Ya.Events.WebApi.DTOs.Requests;
-using Ya.Events.WebApi.DTOs.Responses;
-using Ya.Events.WebApi.Interfaces;
-using Ya.Events.WebApi.Mappings;
+using Ya.Events.Application.Abstractions.Services;
+using Ya.Events.Application.DTOs.Bookings;
+using Ya.Events.Application.DTOs.Events;
+using Ya.Events.Application.DTOs.Responses;
+using Ya.Events.Application.Mappers;
 
 namespace Ya.Events.WebApi.Controllers;
 

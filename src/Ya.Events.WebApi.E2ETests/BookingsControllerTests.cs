@@ -1,7 +1,8 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
-using Ya.Events.WebApi.DTOs.Requests;
-using Ya.Events.WebApi.DTOs.Responses;
+using Ya.Events.Application.DTOs.Bookings;
+using Ya.Events.Application.DTOs.Events;
+using Ya.Events.Domain.ValueObjects;
 using Ya.Events.WebApi.IntegrationTests.Fixtures;
 
 namespace Ya.Events.WebApi.IntegrationTests;
@@ -54,7 +55,7 @@ public class BookingsControllerTests : IClassFixture<WebApiFactory>
         // Опционально: проверяем, что тело ответа содержит бронь
         var booking = await bookResponse.Content.ReadFromJsonAsync<BookingResponse>(ct);
         Assert.NotNull(booking);
-        Assert.Equal(Enums.BookingStatus.Pending, booking.Status);
+        Assert.Equal(BookingStatus.Pending, booking.Status);
         Assert.Equal(bookingId, booking.Id.ToString());
     }
 
