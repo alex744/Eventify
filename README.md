@@ -20,9 +20,9 @@
 - **Domain** — уровень, содержащий доменные модели и бизнес-правила, не зависящие от деталей реализации (включает сущности, перечисления, доменные исключения).
 
 **Правило:** Верхние слои зависят от нижних, но не наоборот.
-- `Presentation` зависит от `Application` и `Domain`
+- `Presentation` зависит от `Application` и `Infrastructure`
 - `Application` зависит от `Domain`
-- `Infrastructure` зависит от `Domain`
+- `Infrastructure` зависит от `Application` и `Domain`
 - `Domain` не зависит ни от чего
 
 ---
@@ -215,7 +215,7 @@ dotnet tool install --global dotnet-ef
 Для применения миграций к базе данных PostgreSQL:
 
 ```bash
-cd src/Ya.Events.WebApi
+cd src/Ya.Events.Infrastructure
 
 # Примените все Pending миграции
 dotnet ef database update
@@ -226,7 +226,7 @@ dotnet ef database update
 При изменении моделей (Event, Booking) создайте новую миграцию:
 
 ```bash
-cd src/Ya.Events.WebApi
+cd src/Ya.Events.Infrastructure
 
 # Создайте миграцию с описательным именем
 dotnet ef migrations add AddFieldNameValidation
@@ -237,7 +237,7 @@ dotnet ef migrations add AddFieldNameValidation
 Для отката на одну миграцию назад:
 
 ```bash
-cd src/Ya.Events.WebApi
+cd src/Ya.Events.Infrastructure
 dotnet ef database update --target PreviousMigrationName
 ```
 
@@ -339,7 +339,7 @@ dotnet add package Testcontainers.PostgreSql
 
 4. Примените существующие миграции к базе данных:
    ```bash
-   cd Ya.Events.WebApi
+   cd Ya.Events.Infrastructure
    dotnet ef database update
    ```
 
