@@ -1,84 +1,109 @@
 ﻿namespace Ya.Events.Domain.Entities;
 
-public class Event
+
+/// <summary>
+/// Событие в системе.
+/// </summary>
+public sealed class Event
 {
-    public Guid Id { get; init; }
-
-    private string _title = string.Empty;
-    public string Title
-    {
-        get => _title;
-        set
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException("Название события обязательно.", nameof(Title));
-            _title = value;
-        }
-    }
-
-    public string? Description { get; set; }
-
-    private DateTime _startAt;
-    public DateTime StartAt
-    {
-        get => _startAt;
-        set
-        {
-            if (value < DateTime.UtcNow)
-                throw new ArgumentException("Дата начала не может быть в прошлом.", nameof(StartAt));
-            _startAt = value;
-        }
-    }
-
-    private DateTime _endAt;
-    public DateTime EndAt
-    {
-        get => _endAt;
-        set
-        {
-            if (value <= StartAt)
-                throw new ArgumentException("Дата окончания должна быть позже даты начала.", nameof(EndAt));
-            _endAt = value;
-        }
-    }
-
-    /// <summary>Общее количество мест на событии.</summary>
-    private int _totalSeats;
-    public int TotalSeats
-    {
-        get => _totalSeats;
-        set
-        {
-            if (value <= 0)
-                throw new ArgumentException("Общее количество мест должно быть положительным.", nameof(TotalSeats));
-            _totalSeats = value;
-        }
-    }
-
-    /// <summary>Текущее количество свободных мест.</summary>
-    public int AvailableSeats { get; private set; }
-
-    /// <summary>Список бронирований, связанных с событием.</summary>
-    public ICollection<Booking> Bookings { get; private set; } = [];
-
-    private Event() { }
+    /// <summary>
+    /// Уникальный идентификатор события.
+    /// </summary>
+    public Guid Id { get; private set; }
 
     /// <summary>
-    /// Создаёт событие с обязательными параметрами.
+    /// Название события.
     /// </summary>
-    /// <param name="title">Название события (обязательное).</param>
-    /// <param name="startAt">Начало события (обязательное).</param>
-    /// <param name="endAt">Окончание события (обязательное и должно быть позже startAt).</param>
-    /// <param name="totalSeats">Общее количество мест на событии (обязательное, больше 0).</param>
-    /// <param name="description">Описание события (опциональное).</param>    
-    public Event(string title, DateTime startAt, DateTime endAt, int totalSeats, string? description = null)
+    public string Title { get; private set; }
+
+    /// <summary>
+    /// Описание события (опционально).
+    /// </summary>
+    public string? Description { get; private set; }
+
+    /// <summary>
+    /// Дата и время начала события.
+    /// </summary>
+    public DateTime StartAt { get; private set; }
+
+    /// <summary>
+    /// Дата и время окончания события.
+    /// </summary>
+    public DateTime EndAt { get; private set; }
+
+    /// <summary>
+    /// Общее количество мест на событии.
+    /// </summary>
+    public int TotalSeats { get; private set; }
+
+    /// <summary>
+    /// Количество доступных мест на событии.
+    /// </summary>
+    public int AvailableSeats { get; private set; }
+
+    /// <summary>
+    /// Список бронирований, связанных с событием.
+    /// </summary>
+    public ICollection<Booking> Bookings { get; private set; } = [];
+
+    private Event() { Title = null!; }
+
+    private Event(
+        Guid id,
+        string title,
+        DateTime startAt,
+        DateTime endAt,
+        int totalSeats,
+        string? description = null)
     {
-        Id = Guid.NewGuid();
-        Title = title.Trim();
+        Id = id;
+        Title = title;
         StartAt = startAt;
         EndAt = endAt;
         TotalSeats = totalSeats;
         AvailableSeats = TotalSeats;
+        Description = description;
+    }
+
+    /// <summary>
+    /// Создаёт новое событие.
+    /// </summary>
+    /// <param name="title">Название события.</param>
+    /// <param name="startAt">Дата и время начала события.</param>
+    /// <param name="endAt">Дата и время окончания события.</param>
+    /// <param name="totalSeats">Общее количество мест на событии.</param>
+    /// <param name="description">Описание события (опционально).</param>
+    /// <returns>Новое событие.</returns>    
+    public static Event Create(
+        string title,
+        DateTime startAt,
+        DateTime endAt,
+        int totalSeats,
+        string? description = null)
+    {
+        ThrowIfNotValid(title, startAt, endAt, totalSeats);
+
+        return new Event(Guid.NewGuid(), title.Trim(), startAt, endAt, totalSeats, description);
+    }
+
+    /// <summary>
+    /// Обновляет свойства события.
+    /// </summary>
+    /// <param name="title">Название события.</param>
+    /// <param name="startAt">Дата и время начала события.</param>
+    /// <param name="endAt">Дата и время окончания события.</param>
+    /// <param name="description">Описание события (опционально).</param>
+    public void Update(
+       string title,
+       DateTime startAt,
+       DateTime endAt,
+       string? description = null)
+    {
+        ThrowIfNotValid(title, startAt, endAt, TotalSeats);
+
+        Title = title;
+        StartAt = startAt;
+        EndAt = endAt;
         Description = description;
     }
 
@@ -109,11 +134,30 @@ public class Event
     public void ReleaseSeats(int count = 1)
     {
         if (count <= 0)
-            throw new ArgumentOutOfRangeException(nameof(count), "Количество мест должно быть положительным.");
+            throw new ArgumentOutOfRangeException(nameof(count), "Количество мест должно быть больше нуля.");
 
         if (AvailableSeats + count > TotalSeats)
             throw new InvalidOperationException("Невозможно освободить больше мест, чем общее количество.");
 
         AvailableSeats += count;
+    }
+
+    private static void ThrowIfNotValid(
+        string title,
+        DateTime startAt,
+        DateTime endAt,
+        int totalSeats)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+            throw new ArgumentException("Название события обязательно.", nameof(Title));
+
+        if (startAt < DateTime.UtcNow)
+            throw new ArgumentException("Дата начала не может быть в прошлом.", nameof(StartAt));
+
+        if (endAt <= startAt)
+            throw new ArgumentException("Дата окончания должна быть позже даты начала.", nameof(EndAt));
+
+        if (totalSeats <= 0)
+            throw new ArgumentException("Общее количество мест должно быть больше нуля.", nameof(TotalSeats));
     }
 }

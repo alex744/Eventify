@@ -19,8 +19,10 @@ public class BookingService : IBookingService
     /// Создаёт новую бронь для указанного события.
     /// </summary>
     /// <param name="eventId">Идентификатор события.</param>
+    /// <param name="userId">Идентификатор пользователя, создающего бронь.</param>
+    /// <param name="ct">Токен отмены.</param>
     /// <returns>Созданная бронь.</returns>    
-    public async Task<Booking> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
+    public async Task<Booking> CreateBookingAsync(Guid eventId, Guid userId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
 
@@ -38,7 +40,7 @@ public class BookingService : IBookingService
                 throw new NoAvailableSeatsException("Свободных мест на это событие нет.");
 
             // 3. Создаём и сохраняем бронь
-            var booking = Booking.CreatePending(eventId);
+            var booking = Booking.CreatePending(eventId, userId);
             await _repository.CreateAsync(booking, ct);
 
             // 4. Сохраняем изменения события в базе данных
@@ -56,6 +58,7 @@ public class BookingService : IBookingService
     /// Возвращает бронь по её идентификатору.
     /// </summary>
     /// <param name="bookingId">Идентификатор брони.</param>
+    /// <param name="ct">Токен отмены.</param>
     /// <returns>Бронь, если найдена; иначе null.</returns>    
     public async Task<Booking?> GetBookingByIdAsync(Guid bookingId, CancellationToken ct = default)
         => await _repository.GetByIdAsync(bookingId, ct);
