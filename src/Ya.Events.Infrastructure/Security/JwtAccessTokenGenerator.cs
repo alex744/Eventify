@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
 using Ya.Events.Application.Abstractions.Security;
+using Ya.Events.Domain.ValueObjects;
 
 namespace Ya.Events.Infrastructure.Security;
 
@@ -18,7 +19,7 @@ public sealed class JwtAccessTokenGenerator : IAccessTokenGenerator
         _jwtOptions = jwtOptions.Value;
     }
 
-    public string CreateToken(Guid userId, string login, string role)
+    public string CreateToken(Guid userId, string login, UserRole role)
     {
         if (userId == Guid.Empty)
             throw new ArgumentException("UserId не может быть пустым.", nameof(userId));
@@ -26,13 +27,10 @@ public sealed class JwtAccessTokenGenerator : IAccessTokenGenerator
         if (string.IsNullOrWhiteSpace(login))
             throw new ArgumentException("Login не может быть пустым.", nameof(login));
 
-        if (string.IsNullOrWhiteSpace(role))
-            throw new ArgumentException("Role не может быть пустым.", nameof(role));
-
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-            new("role", role)
+            new("role", role.ToString())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Secret));

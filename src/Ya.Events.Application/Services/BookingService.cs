@@ -2,11 +2,13 @@
 using Ya.Events.Application.Abstractions.Services;
 using Ya.Events.Domain.Entities;
 using Ya.Events.Domain.Exceptions;
+using Ya.Events.Domain.ValueObjects;
 
 namespace Ya.Events.Application.Services;
 
 public class BookingService : IBookingService
 {
+    private const int MaxActiveBookingsPerUser = 10;
     private readonly IBookingRepository _repository;
     private static readonly SemaphoreSlim _semaphore = new(1, 1);
 
@@ -35,15 +37,24 @@ public class BookingService : IBookingService
             if (existingEvent is null)
                 throw new NotFoundException($"Событие с идентификатором '{eventId}' не найдено.");
 
-            // 2. Атомарно проверяем и резервируем место
+            // 2. Запрет бронирования события, которое уже началось
+            if (existingEvent.StartAt <= DateTime.UtcNow)
+                throw new PastEventBookingException("Нельзя создать бронь на событие, которое уже началось.");
+
+            // 3. Ограничение активных бронирований у пользователя
+            var activeCount = await _repository.CountActiveBookingsAsync(userId, ct);
+            if (activeCount >= MaxActiveBookingsPerUser)
+                throw new TooManyActiveBookingsException("У пользователя не может быть более 10 активных броней.");
+
+            // 4. Атомарно проверяем и резервируем место
             if (!existingEvent.TryReserveSeats())
                 throw new NoAvailableSeatsException("Свободных мест на это событие нет.");
 
-            // 3. Создаём и сохраняем бронь
+            // 5. Создаём и сохраняем бронь
             var booking = Booking.CreatePending(eventId, userId);
             await _repository.CreateAsync(booking, ct);
 
-            // 4. Сохраняем изменения события в базе данных
+            // 6. Сохраняем изменения события в базе данных
             await _repository.SaveChangesAsync(ct);
 
             return booking;
@@ -62,4 +73,51 @@ public class BookingService : IBookingService
     /// <returns>Бронь, если найдена; иначе null.</returns>    
     public async Task<Booking?> GetBookingByIdAsync(Guid bookingId, CancellationToken ct = default)
         => await _repository.GetByIdAsync(bookingId, ct);
+
+    /// <summary>
+    /// Отменяет бронь с проверкой прав.    
+    /// </summary>
+    /// <param name="bookingId">Идентификатор брони.</param>
+    /// <param name="requesterUserId">Идентификатор пользователя, пытающегося отменить бронь.</param>
+    /// <param name="isAdmin">Указывает, является ли пользователь администратором.</param>
+    /// <param name="ct">Токен отмены.</param>
+    /// <returns>Отмененная бронь.</returns>
+    public async Task<Booking> CancelBookingAsync(Guid bookingId, Guid requesterUserId, bool isAdmin, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        // Критическая секция – захватываем разделяемый семафор
+        await _semaphore.WaitAsync(ct);
+        try
+        {
+            // 1. Получаем бронь
+            var booking = await _repository.GetByIdAsync(bookingId, ct);
+            if (booking is null)
+                throw new NotFoundException($"Бронь с идентификатором '{bookingId}' не найдена.");
+
+            // 2. Проверяем права на отмену
+            if (!isAdmin && booking.UserId != requesterUserId)
+                throw new ForbiddenException("Недостаточно прав для отмены бронирования.");
+
+            // 3. Если уже отменена — вернуть без изменений (идемпотентно)
+            if (booking.Status == BookingStatus.Cancelled)
+                return booking;
+
+            // 4.Отмена брони
+            booking.Cancel();
+
+            // 5.Освобождаем место в событии, если событие существует
+            var existingEvent = await _repository.GetEventByIdAsync(booking.EventId, ct);
+            existingEvent?.ReleaseSeats();
+
+            // 6. Сохраняем изменения в базе данных
+            await _repository.SaveChangesAsync(ct);
+
+            return booking;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
 }
