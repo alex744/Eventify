@@ -50,11 +50,11 @@ public class UserService : IUserService
         ct.ThrowIfCancellationRequested();
 
         if (string.IsNullOrWhiteSpace(request.Login) || string.IsNullOrWhiteSpace(request.Password))
-            throw new ValidationException("Логин и пароль обязательны.");
+            throw new NotFoundException("Неверный логин или пароль.");
 
         var user = await _repository.GetByLoginAsync(request.Login, ct);
         if (user is null)
-            throw new ValidationException("Пользователь не найден.");
+            throw new NotFoundException("Неверный логин или пароль.");
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
             throw new NotFoundException("Неверный логин или пароль.");

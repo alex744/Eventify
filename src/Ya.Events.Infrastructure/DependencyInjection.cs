@@ -56,8 +56,7 @@ public static class DependencyInjectionExtensions
 
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<JwtOptions>(options =>
-            configuration.GetSection("Jwt"));
+        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
