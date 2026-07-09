@@ -4,6 +4,7 @@ using Ya.Events.Application.Abstractions.Security;
 using Ya.Events.Application.Abstractions.Services;
 using Ya.Events.Application.DTOs.Auth;
 using Ya.Events.Domain.Entities;
+using Ya.Events.Domain.Exceptions;
 using Ya.Events.Domain.ValueObjects;
 
 namespace Ya.Events.Application.Services;
@@ -56,7 +57,7 @@ public class UserService : IUserService
             throw new ValidationException("Пользователь не найден.");
 
         if (!_passwordHasher.Verify(request.Password, user.PasswordHash))
-            throw new ValidationException("Неверный логин или пароль.");
+            throw new NotFoundException("Неверный логин или пароль.");
 
         var token = _tokenGenerator.CreateToken(user.Id, user.Login, user.Role);
         return new AuthResponse(user.Id, user.Login, user.Role.ToString(), token);

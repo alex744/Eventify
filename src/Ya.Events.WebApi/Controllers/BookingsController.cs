@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Ya.Events.Application.Abstractions.Services;
 using Ya.Events.Application.DTOs.Bookings;
 using Ya.Events.Application.Mappers;
+using Ya.Events.WebApi.Extensions;
 
 namespace Ya.Events.WebApi.Controllers;
 
@@ -20,12 +22,15 @@ public class BookingsController : ControllerBase
     /// Возвращает текущее состояние брони по её идентификатору
     /// GET /bookings/{id}
     /// </summary>    
+    [Authorize]
     [HttpGet("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(BookingResponse))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<BookingResponse>> GetBookingAsync(Guid id, CancellationToken ct = default)
     {
+        var userId = User.GetUserId();
         var booking = await _bookingService.GetBookingByIdAsync(id, ct);
         if (booking == null)
             return NotFound(new ProblemDetails
@@ -35,5 +40,25 @@ public class BookingsController : ControllerBase
             });
 
         return booking.ToResponse();
+    }
+
+    /// <summary>
+    /// Отменить бронь
+    /// DELETE /bookings/{id}
+    /// </summary>    
+    [Authorize]
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
+    public async Task<IActionResult> CancelBookingAsync(Guid id, CancellationToken ct = default)
+    {
+        var userId = User.GetUserId();
+        var isAdmin = User.IsInRole("Admin");
+
+        await _bookingService.CancelBookingAsync(id, userId, isAdmin, ct);
+        return NoContent();
     }
 }
