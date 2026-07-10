@@ -47,7 +47,7 @@ public sealed class EventServiceTests : IDisposable
         // Arrange
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        var expectedEvent = new Event(
+        var expectedEvent = Event.Create(
             title: "Событие 1",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -81,7 +81,7 @@ public sealed class EventServiceTests : IDisposable
     {
         // Arrange
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var createEvent = new Event(
+        var createEvent = Event.Create(
             title: "  Test Event  ",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -108,7 +108,7 @@ public sealed class EventServiceTests : IDisposable
         // Arrange        
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        var expectedEvent = await _eventService.CreateAsync(new Event(
+        var expectedEvent = await _eventService.CreateAsync(Event.Create(
             title: "Событие 1",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -175,9 +175,9 @@ public sealed class EventServiceTests : IDisposable
         // Arrange
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        await _eventService.CreateAsync(new Event("Событие 3", futureDate.AddMonths(1), futureDate.AddMonths(1).AddHours(2), 30, "Описание 3"), ct);
-        await _eventService.CreateAsync(new Event("Событие 2", futureDate.AddMonths(2), futureDate.AddMonths(2).AddHours(2), 20, "Описание 2"), ct);
-        await _eventService.CreateAsync(new Event("Событие 1", futureDate.AddMonths(3), futureDate.AddMonths(3).AddHours(2), 10, "Описание 1"), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 3", futureDate.AddMonths(1), futureDate.AddMonths(1).AddHours(2), 30, "Описание 3"), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 2", futureDate.AddMonths(2), futureDate.AddMonths(2).AddHours(2), 20, "Описание 2"), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 1", futureDate.AddMonths(3), futureDate.AddMonths(3).AddHours(2), 10, "Описание 1"), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(ct: ct);
@@ -203,8 +203,8 @@ public sealed class EventServiceTests : IDisposable
         var filterDate = futureDate1.AddHours(1);
         var ct = TestContext.Current.CancellationToken;
 
-        await _eventService.CreateAsync(new Event("Event 1", futureDate1, futureDate1.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Event 2", futureDate2, futureDate2.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Event 1", futureDate1, futureDate1.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Event 2", futureDate2, futureDate2.AddHours(2), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(from: filterDate, ct: ct);
@@ -227,8 +227,8 @@ public sealed class EventServiceTests : IDisposable
         var filterDate = futureDate1.AddHours(3);
         var ct = TestContext.Current.CancellationToken;
 
-        await _eventService.CreateAsync(new Event("Event 1", futureDate1, futureDate1.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Event 2", futureDate2, futureDate2.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Event 1", futureDate1, futureDate1.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Event 2", futureDate2, futureDate2.AddHours(2), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(to: filterDate, ct: ct);
@@ -248,8 +248,8 @@ public sealed class EventServiceTests : IDisposable
         // Arrange                
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        await _eventService.CreateAsync(new Event("Conference 2024", futureDate, futureDate.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Meeting Q1", futureDate.AddHours(2), futureDate.AddHours(4), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Conference 2024", futureDate, futureDate.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Meeting Q1", futureDate.AddHours(2), futureDate.AddHours(4), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(title: "Conference", ct: ct);
@@ -269,7 +269,7 @@ public sealed class EventServiceTests : IDisposable
         // Arrange                
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        await _eventService.CreateAsync(new Event("Conference 2024", futureDate, futureDate.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Conference 2024", futureDate, futureDate.AddHours(2), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(title: "conference", ct: ct);
@@ -292,9 +292,9 @@ public sealed class EventServiceTests : IDisposable
         var toDate = baseDate.AddHours(4);
         var ct = TestContext.Current.CancellationToken;
 
-        await _eventService.CreateAsync(new Event("Событие 1", baseDate, baseDate.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Событие 2", baseDate.AddHours(2), baseDate.AddHours(4), 10), ct);
-        await _eventService.CreateAsync(new Event("Событие 3", baseDate.AddHours(4), baseDate.AddHours(6), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 1", baseDate, baseDate.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 2", baseDate.AddHours(2), baseDate.AddHours(4), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 3", baseDate.AddHours(4), baseDate.AddHours(6), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(from: fromDate, to: toDate, ct: ct);
@@ -319,8 +319,8 @@ public sealed class EventServiceTests : IDisposable
         var to = baseDate.AddDays(3);
         var ct = TestContext.Current.CancellationToken;
 
-        await _eventService.CreateAsync(new Event("Событие 1", baseDate, baseDate.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Событие 2", baseDate.AddDays(1), baseDate.AddDays(1).AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 1", baseDate, baseDate.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 2", baseDate.AddDays(1), baseDate.AddDays(1).AddHours(2), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(from: from, to: to, ct: ct);
@@ -340,8 +340,8 @@ public sealed class EventServiceTests : IDisposable
         // Arrange     
         var baseDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        await _eventService.CreateAsync(new Event("Conference 2024", baseDate, baseDate.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Conference 2025", baseDate.AddDays(5), baseDate.AddDays(5).AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Conference 2024", baseDate, baseDate.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Conference 2025", baseDate.AddDays(5), baseDate.AddDays(5).AddHours(2), 10), ct);
 
         // Act
         var result = await _eventService.GetAllAsync(
@@ -369,8 +369,8 @@ public sealed class EventServiceTests : IDisposable
         var to = baseDate.AddDays(2);
         var ct = TestContext.Current.CancellationToken;
 
-        await _eventService.CreateAsync(new Event("Событие 1", baseDate, baseDate.AddHours(2), 10), ct);
-        await _eventService.CreateAsync(new Event("Событие 2", baseDate.AddDays(5), baseDate.AddDays(5).AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 1", baseDate, baseDate.AddHours(2), 10), ct);
+        await _eventService.CreateAsync(Event.Create("Событие 2", baseDate.AddDays(5), baseDate.AddDays(5).AddHours(2), 10), ct);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() => _eventService.GetAllAsync(from: from, to: to, ct: ct));
@@ -394,7 +394,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 15; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -424,7 +424,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 25; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -454,7 +454,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 25; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -484,7 +484,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 23; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -514,7 +514,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 5; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -543,7 +543,7 @@ public sealed class EventServiceTests : IDisposable
         var ct = TestContext.Current.CancellationToken;
         for (int i = 1; i <= 15; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                  title: $"Событие {i}",
                  startAt: baseDate.AddDays(i),
                  endAt: baseDate.AddDays(i).AddHours(2),
@@ -589,7 +589,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 30; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Conference {i}",
                 startAt: baseDate.AddDays(i),
                 endAt: baseDate.AddDays(i).AddHours(2),
@@ -620,11 +620,11 @@ public sealed class EventServiceTests : IDisposable
         // Arrange
         var baseDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        await _eventService.CreateAsync(new Event("Конференция по маркетингу", baseDate.AddDays(14), baseDate.AddDays(19), 100, "Описание"), ct);
-        await _eventService.CreateAsync(new Event("Конференция по дизайну", baseDate.AddDays(13), baseDate.AddDays(14), 50, "Описание"), ct);
-        await _eventService.CreateAsync(new Event("Встреча разработчиков", baseDate.AddDays(10), baseDate.AddDays(12), 200, "Описание"), ct);
-        await _eventService.CreateAsync(new Event("Конференция по IT", baseDate.AddDays(9), baseDate.AddDays(11), 80, "Описание"), ct);
-        await _eventService.CreateAsync(new Event("Конференция по бизнесу", baseDate.AddDays(8), baseDate.AddDays(9), 120, "Описание"), ct);
+        await _eventService.CreateAsync(Event.Create("Конференция по маркетингу", baseDate.AddDays(14), baseDate.AddDays(19), 100, "Описание"), ct);
+        await _eventService.CreateAsync(Event.Create("Конференция по дизайну", baseDate.AddDays(13), baseDate.AddDays(14), 50, "Описание"), ct);
+        await _eventService.CreateAsync(Event.Create("Встреча разработчиков", baseDate.AddDays(10), baseDate.AddDays(12), 200, "Описание"), ct);
+        await _eventService.CreateAsync(Event.Create("Конференция по IT", baseDate.AddDays(9), baseDate.AddDays(11), 80, "Описание"), ct);
+        await _eventService.CreateAsync(Event.Create("Конференция по бизнесу", baseDate.AddDays(8), baseDate.AddDays(9), 120, "Описание"), ct);
 
         // Фильтры
         var titleFilter = "конференция";
@@ -674,7 +674,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 3; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -702,7 +702,7 @@ public sealed class EventServiceTests : IDisposable
 
         for (int i = 1; i <= 37; i++)
         {
-            await _eventService.CreateAsync(new Event(
+            await _eventService.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 1),
@@ -726,7 +726,7 @@ public sealed class EventServiceTests : IDisposable
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
 
-        await _eventService.CreateAsync(new Event(
+        await _eventService.CreateAsync(Event.Create(
             title: "Event 1",
             startAt: futureDate,
             endAt: futureDate.AddHours(1),
@@ -754,14 +754,14 @@ public sealed class EventServiceTests : IDisposable
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
 
-        var createdEvent = await _eventService.CreateAsync(new Event(
+        var createdEvent = await _eventService.CreateAsync(Event.Create(
             title: "Событие 1",
             startAt: futureDate.AddDays(1),
             endAt: futureDate.AddDays(2),
             totalSeats: 10,
             description: "Описание 1"), ct);
 
-        var expectedEvent = new Event(
+        var expectedEvent = Event.Create(
             title: "Обновлённое событие",
             startAt: futureDate.AddDays(2),
             endAt: futureDate.AddDays(3),
@@ -791,7 +791,7 @@ public sealed class EventServiceTests : IDisposable
         var invalidId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
 
-        var expectedEvent = new Event(
+        var expectedEvent = Event.Create(
             title: "Обновлённое название",
             startAt: DateTime.UtcNow.AddDays(1),
             endAt: DateTime.UtcNow.AddDays(2),
@@ -817,7 +817,7 @@ public sealed class EventServiceTests : IDisposable
         // Arrange       
         var futureDate = DateTime.UtcNow.AddDays(1);
         var ct = TestContext.Current.CancellationToken;
-        var createdEvent = await _eventService.CreateAsync(new Event("Событие 1", futureDate, futureDate.AddDays(1), 10), ct);
+        var createdEvent = await _eventService.CreateAsync(Event.Create("Событие 1", futureDate, futureDate.AddDays(1), 10), ct);
 
         // Act
         await _eventService.DeleteAsync(createdEvent.Id, ct);

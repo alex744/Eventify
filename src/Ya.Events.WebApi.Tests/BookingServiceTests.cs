@@ -43,7 +43,7 @@ public sealed class BookingServiceTests : IDisposable
     private async Task<Guid> CreateTestEventAsync(int totalSeats = 10)
     {
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var created = await _eventService.CreateAsync(new Event(
+        var created = await _eventService.CreateAsync(Event.Create(
             title: "Test Event",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -63,10 +63,12 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_WithValidEventId_ReturnsBookingInfoWithPendingStatus()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
 
         // Act
-        var result = await _bookingService.CreateBookingAsync(eventId, TestContext.Current.CancellationToken);
+        var result = await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Assert
         Assert.NotNull(result);
@@ -84,11 +86,13 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_WithValidEventId_SetsCreatedAt()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync();
         var before = DateTime.UtcNow;
+        var ct = TestContext.Current.CancellationToken;
 
         // Act
-        var result = await _bookingService.CreateBookingAsync(eventId, TestContext.Current.CancellationToken);
+        var result = await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Assert
         var after = DateTime.UtcNow;
@@ -103,10 +107,12 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_WithNonExistentEvent_ThrowsNotFoundException()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var invalidEventId = Guid.NewGuid();
+        var ct = TestContext.Current.CancellationToken;
 
         // Act & Assert
-        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _bookingService.CreateBookingAsync(invalidEventId, TestContext.Current.CancellationToken));
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _bookingService.CreateBookingAsync(invalidEventId, userId, ct));
         Assert.Equal($"Событие с идентификатором '{invalidEventId}' не найдено.", exception.Message);
     }
 
@@ -118,11 +124,13 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_MultipleBookingsForSameEvent_AllCreatedWithUniqueIds()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync(totalSeats: 5);
+        var ct = TestContext.Current.CancellationToken;
 
         var results = new List<Booking>();
         for (int i = 0; i < 5; i++)
-            results.Add(await _bookingService.CreateBookingAsync(eventId, TestContext.Current.CancellationToken));
+            results.Add(await _bookingService.CreateBookingAsync(eventId, userId, ct));
 
         // Act & Assert
         var uniqueIds = results.Select(r => r.Id).Distinct();
@@ -137,12 +145,13 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_WhenNoSeatsAvailable_ThrowsNoAvailableSeatsException()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync(totalSeats: 1);
-        await _bookingService.CreateBookingAsync(eventId, ct);
+        await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Act & Assert
-        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => _bookingService.CreateBookingAsync(eventId, ct));
+        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => _bookingService.CreateBookingAsync(eventId, userId, ct));
     }
 
     /// <summary>
@@ -153,11 +162,12 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_DecrementsAvailableSeats()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync(totalSeats: 3);
 
-        await _bookingService.CreateBookingAsync(eventId, ct);
-        await _bookingService.CreateBookingAsync(eventId, ct);
+        await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Act & Assert
         var eventInfo = await _eventService.GetByIdAsync(eventId, ct);
@@ -172,6 +182,7 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_MultipleBookingsUpToLimit_AllSucceed()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync(totalSeats: 3);
 
@@ -179,7 +190,7 @@ public sealed class BookingServiceTests : IDisposable
         var bookings = new List<Booking>();
         for (int i = 0; i < 3; i++)
         {
-            bookings.Add(await _bookingService.CreateBookingAsync(eventId, ct));
+            bookings.Add(await _bookingService.CreateBookingAsync(eventId, userId, ct));
         }
 
         // Assert
@@ -199,11 +210,12 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_AfterRejectAndReleaseSeats_Succeeds()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync(totalSeats: 1);
 
         // Первая бронь успешна, места заканчиваются (AvailableSeats становится 0)
-        var firstBooking = await _bookingService.CreateBookingAsync(eventId, ct);
+        var firstBooking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
         Assert.NotNull(firstBooking);
 
         // Имитация обработки в фоне: бронь отклоняется, место освобождается
@@ -218,7 +230,7 @@ public sealed class BookingServiceTests : IDisposable
         }
 
         // Act
-        var secondBooking = await _bookingService.CreateBookingAsync(eventId, ct);
+        var secondBooking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Assert
         Assert.NotNull(secondBooking);
@@ -235,6 +247,7 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_WhenEventIsDeleted_ThrowsNotFoundException()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync(totalSeats: 1);
 
@@ -242,7 +255,7 @@ public sealed class BookingServiceTests : IDisposable
         await _eventService.DeleteAsync(eventId, ct);
 
         // Assert
-        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _bookingService.CreateBookingAsync(eventId, ct));
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _bookingService.CreateBookingAsync(eventId, userId, ct));
         Assert.Contains(eventId.ToString(), exception.Message);
     }
 
@@ -254,8 +267,10 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_Confirm_ChangesStatusToConfirmedAndSetsProcessedAt()
     {
         // Arrange        
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync(totalSeats: 5);
-        var created = await _bookingService.CreateBookingAsync(eventId, TestContext.Current.CancellationToken);
+        var ct = TestContext.Current.CancellationToken;
+        var created = await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Act
         created.Confirm();
@@ -274,8 +289,10 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_Reject_ChangesStatusToRejectedAndSetsProcessedAt()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync(totalSeats: 5);
-        var created = await _bookingService.CreateBookingAsync(eventId, TestContext.Current.CancellationToken);
+        var ct = TestContext.Current.CancellationToken;
+        var created = await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Act
         created.Reject();
@@ -294,9 +311,11 @@ public sealed class BookingServiceTests : IDisposable
     public async Task CreateBookingAsync_ReleaseSeats_AfterReject_RestoresAvailableSeats()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync(totalSeats: 5);
-        var created = await _bookingService.CreateBookingAsync(eventId, TestContext.Current.CancellationToken);
-        var eventInfo = await _eventService.GetByIdAsync(eventId, TestContext.Current.CancellationToken);
+        var ct = TestContext.Current.CancellationToken;
+        var created = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var eventInfo = await _eventService.GetByIdAsync(eventId, ct);
         int initialSeats = eventInfo?.AvailableSeats ?? 0;
 
         // Симулируем бронирование
@@ -322,9 +341,10 @@ public sealed class BookingServiceTests : IDisposable
     public async Task GetBookingByIdAsync_ExistingBooking_ReturnsCorrectBooking()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync();
-        var created = await _bookingService.CreateBookingAsync(eventId, ct);
+        var created = await _bookingService.CreateBookingAsync(eventId, userId, ct);
 
         // Act
         var result = await _bookingService.GetBookingByIdAsync(created.Id, ct);
@@ -363,10 +383,11 @@ public sealed class BookingServiceTests : IDisposable
     public async Task GetBookingByIdAsync_AfterStatusChanged_ReturnsUpdatedStatus()
     {
         // Arrange
+        var userId = Guid.NewGuid();
         var ct = TestContext.Current.CancellationToken;
         var eventId = await CreateTestEventAsync();
 
-        var created = await _bookingService.CreateBookingAsync(eventId, ct);
+        var created = await _bookingService.CreateBookingAsync(eventId, userId, ct);
         created.Confirm();
 
         // Act
@@ -382,7 +403,8 @@ public sealed class BookingServiceTests : IDisposable
     #region Concurrency Tests
 
     /// <summary>
-    /// Проверяет, что при одновременных запросах на создание броней система не допускает перебронирование (overbooking) и разрешает только количество броней, равное доступным местам.
+    /// Проверяет, что при одновременных запросах на создание броней система не допускает перебронирование (overbooking) 
+    /// и разрешает только количество броней, равное доступным местам.
     /// </summary>
     [Fact]
     [Trait("Scenario", "Concurrency")]
@@ -391,7 +413,9 @@ public sealed class BookingServiceTests : IDisposable
         // Arrange
         const int totalSeats = 5;
         const int concurrentRequests = 20;
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync(totalSeats: totalSeats);
+        var ct = TestContext.Current.CancellationToken;
 
         // Act
         var tasks = Enumerable.Range(0, concurrentRequests)
@@ -401,7 +425,7 @@ public sealed class BookingServiceTests : IDisposable
                 var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
                 try
                 {
-                    await bookingService.CreateBookingAsync(eventId);
+                    await bookingService.CreateBookingAsync(eventId, userId, ct);
                     return true;
                 }
                 catch (NoAvailableSeatsException)
@@ -418,7 +442,8 @@ public sealed class BookingServiceTests : IDisposable
     }
 
     /// <summary>
-    /// Проверяет, что при одновременных запросах на создание броней все успешно созданные брони имеют уникальные идентификаторы без дублей.
+    /// Проверяет, что при одновременных запросах на создание броней все успешно созданные брони 
+    /// имеют уникальные идентификаторы без дублей.
     /// </summary>
     [Fact]
     [Trait("Scenario", "Concurrency")]
@@ -427,8 +452,10 @@ public sealed class BookingServiceTests : IDisposable
         // Arrange
         const int totalSeats = 10;
         const int concurrentRequests = 10;
+        var userId = Guid.NewGuid();
         var eventId = await CreateTestEventAsync(totalSeats: totalSeats);
         var bookingIds = new System.Collections.Concurrent.ConcurrentBag<Guid>();
+        var ct = TestContext.Current.CancellationToken;
 
         // Act
         var tasks = Enumerable.Range(0, concurrentRequests)
@@ -436,7 +463,7 @@ public sealed class BookingServiceTests : IDisposable
             {
                 using var scope = _serviceProvider.CreateScope();
                 var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
-                var booking = await bookingService.CreateBookingAsync(eventId);
+                var booking = await bookingService.CreateBookingAsync(eventId, userId, ct);
                 bookingIds.Add(booking.Id);
             }));
 
