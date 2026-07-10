@@ -44,7 +44,7 @@ public class BookingService : IBookingService
             // 3. Ограничение активных бронирований у пользователя
             var activeCount = await _repository.CountActiveBookingsAsync(userId, ct);
             if (activeCount >= MaxActiveBookingsPerUser)
-                throw new TooManyActiveBookingsException("У пользователя не может быть более 10 активных броней.");
+                throw new TooManyActiveBookingsException($"У пользователя не может быть более {MaxActiveBookingsPerUser} активных броней.");
 
             // 4. Атомарно проверяем и резервируем место
             if (!existingEvent.TryReserveSeats())
