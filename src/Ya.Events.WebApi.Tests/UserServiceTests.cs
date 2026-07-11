@@ -145,13 +145,13 @@ public sealed class UserServiceTests : IDisposable
     [InlineData("   ")]
     [InlineData(null)]
     [Trait("Scenario", "Failure")]
-    public async Task RegisterAsync_WithEmptyLogin_ThrowsValidationException(string login)
+    public async Task RegisterAsync_WithEmptyLogin_ThrowsValidationException(string? login)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var request = new RegisterUserRequest
         {
-            Login = login,
+            Login = login!,
             Password = "password123"
         };
 
@@ -167,14 +167,14 @@ public sealed class UserServiceTests : IDisposable
     [InlineData("   ")]
     [InlineData(null)]
     [Trait("Scenario", "Failure")]
-    public async Task RegisterAsync_WithEmptyPassword_ThrowsValidationException(string password)
+    public async Task RegisterAsync_WithEmptyPassword_ThrowsValidationException(string? password)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var request = new RegisterUserRequest
         {
             Login = "testuser",
-            Password = password
+            Password = password!
         };
 
         // Act & Assert
@@ -349,13 +349,13 @@ public sealed class UserServiceTests : IDisposable
     [InlineData("   ")]
     [InlineData(null)]
     [Trait("Scenario", "Failure")]
-    public async Task LoginAsync_WithEmptyLogin_ThrowsNotFoundException(string login)
+    public async Task LoginAsync_WithEmptyLogin_ThrowsNotFoundException(string? login)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var loginRequest = new LoginUserRequest
         {
-            Login = login,
+            Login = login!,
             Password = "password123"
         };
 
@@ -371,14 +371,14 @@ public sealed class UserServiceTests : IDisposable
     [InlineData("   ")]
     [InlineData(null)]
     [Trait("Scenario", "Failure")]
-    public async Task LoginAsync_WithEmptyPassword_ThrowsNotFoundException(string password)
+    public async Task LoginAsync_WithEmptyPassword_ThrowsNotFoundException(string? password)
     {
         // Arrange
         var ct = TestContext.Current.CancellationToken;
         var loginRequest = new LoginUserRequest
         {
             Login = "testuser",
-            Password = password
+            Password = password!
         };
 
         // Act & Assert

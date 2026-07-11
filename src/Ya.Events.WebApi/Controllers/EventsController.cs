@@ -140,12 +140,14 @@ public class EventsController : ControllerBase
     /// <param name="ct">Токен отмены.</param>
     /// <returns>Бронь со статусом Pending; код 202 Accepted с Location в заголовке.</returns>
     /// <response code="202">Бронь успешно создана и находится в ожидании подтверждения.</response>
+    /// <response code="400">Событие уже началось.</response>
     /// <response code="401">Требуется аутентификация.</response>
     /// <response code="404">Событие с указанным идентификатором не найдено.</response>
     /// <response code="409">Нет доступных мест для бронирования.</response>
     [Authorize]
     [HttpPost("{eventId}/book")]
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(BookingResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
