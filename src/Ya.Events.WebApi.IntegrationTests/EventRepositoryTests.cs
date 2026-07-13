@@ -29,7 +29,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var @event = new Event(
+        var @event = Event.Create(
             title: "Test Event",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -59,7 +59,7 @@ public sealed class EventRepositoryTests
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
         var events = Enumerable.Range(1, 5)
-            .Select(i => new Event(
+            .Select(i => Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddDays(i),
                 endAt: futureDate.AddDays(i).AddHours(2),
@@ -94,7 +94,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var @event = new Event(
+        var @event = Event.Create(
             title: "Existing Event",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -166,7 +166,7 @@ public sealed class EventRepositoryTests
         var futureDate = DateTime.UtcNow.AddDays(1);
         for (int i = 1; i <= 5; i++)
         {
-            await _eventRepository.CreateAsync(new Event(
+            await _eventRepository.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: futureDate.AddDays(i),
                 endAt: futureDate.AddDays(i).AddHours(2),
@@ -192,13 +192,13 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        await _eventRepository.CreateAsync(new Event(
+        await _eventRepository.CreateAsync(Event.Create(
             title: "Conference 2024",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
             totalSeats: 100
         ), CancellationToken.None);
-        await _eventRepository.CreateAsync(new Event(
+        await _eventRepository.CreateAsync(Event.Create(
             title: "Workshop Basics",
             startAt: futureDate.AddDays(1),
             endAt: futureDate.AddDays(1).AddHours(2),
@@ -223,7 +223,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        await _eventRepository.CreateAsync(new Event(
+        await _eventRepository.CreateAsync(Event.Create(
             title: "UPPERCASE EVENT",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -251,7 +251,7 @@ public sealed class EventRepositoryTests
         var baseDate = DateTime.UtcNow.Date.AddDays(1);
 
         // Событие ДО диапазона
-        await _eventRepository.CreateAsync(new Event(
+        await _eventRepository.CreateAsync(Event.Create(
             title: "Before",
             startAt: baseDate,
             endAt: baseDate.AddHours(2),
@@ -259,7 +259,7 @@ public sealed class EventRepositoryTests
         ), CancellationToken.None);
 
         // Событие ВНУТРИ диапазона
-        await _eventRepository.CreateAsync(new Event(
+        await _eventRepository.CreateAsync(Event.Create(
             title: "Inside",
             startAt: baseDate.AddDays(5),
             endAt: baseDate.AddDays(5).AddHours(2),
@@ -267,7 +267,7 @@ public sealed class EventRepositoryTests
         ), CancellationToken.None);
 
         // Событие ПОСЛЕ диапазона
-        await _eventRepository.CreateAsync(new Event(
+        await _eventRepository.CreateAsync(Event.Create(
             title: "After",
             startAt: baseDate.AddDays(10),
             endAt: baseDate.AddDays(10).AddHours(2),
@@ -319,7 +319,7 @@ public sealed class EventRepositoryTests
         var futureDate = DateTime.UtcNow.AddDays(1);
         for (int i = 1; i <= 25; i++)
         {
-            await _eventRepository.CreateAsync(new Event(
+            await _eventRepository.CreateAsync(Event.Create(
                 title: $"Event {i:D2}",
                 startAt: futureDate.AddHours(i),
                 endAt: futureDate.AddHours(i + 2),
@@ -351,7 +351,7 @@ public sealed class EventRepositoryTests
         var baseDate = DateTime.UtcNow.AddDays(1);
         for (int i = 1; i <= 5; i++)
         {
-            await _eventRepository.CreateAsync(new Event(
+            await _eventRepository.CreateAsync(Event.Create(
                 title: $"Event {i}",
                 startAt: baseDate.AddDays(i),
                 endAt: baseDate.AddDays(i).AddHours(2),
@@ -381,7 +381,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var @event = new Event(
+        var @event = Event.Create(
             title: "Original Title",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -389,7 +389,7 @@ public sealed class EventRepositoryTests
         );
         var created = await _eventRepository.CreateAsync(@event, CancellationToken.None);
 
-        var updated = new Event(
+        var updated = Event.Create(
             title: "Updated Title",
             startAt: futureDate.AddDays(1),
             endAt: futureDate.AddDays(1).AddHours(3),
@@ -402,7 +402,7 @@ public sealed class EventRepositoryTests
         // Assert
         Assert.Equal(created.Id, result!.Id);
         Assert.Equal("Updated Title", result!.Title);
-        Assert.Equal(100, result!.TotalSeats);
+        Assert.Equal(50, result!.TotalSeats);
         Assert.Equal(futureDate.AddDays(1), result!.StartAt);
     }
 
@@ -416,7 +416,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var nonExistentId = Guid.NewGuid();
-        var updated = new Event(
+        var updated = Event.Create(
             title: "Updated",
             startAt: DateTime.UtcNow.AddDays(1),
             endAt: DateTime.UtcNow.AddDays(1).AddHours(2),
@@ -440,7 +440,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var @event = new Event(
+        var @event = Event.Create(
             title: "Original",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -449,7 +449,7 @@ public sealed class EventRepositoryTests
         var created = await _eventRepository.CreateAsync(@event, CancellationToken.None);
         var originalId = created.Id;
 
-        var updated = new Event(
+        var updated = Event.Create(
             title: "Updated",
             startAt: futureDate.AddDays(1),
             endAt: futureDate.AddDays(1).AddHours(2),
@@ -477,7 +477,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var @event = new Event(
+        var @event = Event.Create(
             title: "To Delete",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -525,7 +525,7 @@ public sealed class EventRepositoryTests
         // Arrange
         await _fixture.ResetDatabaseAsync();
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var @event = new Event(
+        var @event = Event.Create(
             title: "Test Event",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -534,7 +534,11 @@ public sealed class EventRepositoryTests
         var created = await _eventRepository.CreateAsync(@event, CancellationToken.None);
 
         // Act
-        created.Title = "Modified Title";
+        created.Update(
+            title: "Modified Title",
+            startAt: futureDate,
+            endAt: futureDate.AddHours(2)
+        );
         await _eventRepository.UpdateAsync(created.Id, created, CancellationToken.None);
 
         // Verify persistence by fetching fresh instance

@@ -12,12 +12,14 @@ public sealed class BookingRepositoryTests
     private readonly PostgreSqlFixture _fixture;
     private readonly IBookingRepository _bookingRepository;
     private readonly IEventRepository _eventRepository;
+    private readonly IUserRepository _userRepository;
 
     public BookingRepositoryTests(PostgreSqlFixture fixture)
     {
         _fixture = fixture;
         _bookingRepository = fixture.ServiceProvider.GetRequiredService<IBookingRepository>();
         _eventRepository = fixture.ServiceProvider.GetRequiredService<IEventRepository>();
+        _userRepository = fixture.ServiceProvider.GetRequiredService<IUserRepository>();
     }
 
     /// <summary>
@@ -26,12 +28,20 @@ public sealed class BookingRepositoryTests
     private async Task<Event> CreateTestEventAsync(int totalSeats = 10)
     {
         var futureDate = DateTime.UtcNow.AddDays(1);
-        return await _eventRepository.CreateAsync(new Event(
+        return await _eventRepository.CreateAsync(Event.Create(
             title: "Test Event",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
             totalSeats: totalSeats
         ), CancellationToken.None);
+    }
+
+    private async Task<Guid> CreateTestUserAsync()
+    {
+        var user = User.Create("test", "test", UserRole.User);
+        await _userRepository.CreateAsync(user, CancellationToken.None);
+
+        return user.Id;
     }
 
     #region CreateAsync Tests
@@ -45,8 +55,9 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync();
-        var booking = Booking.CreatePending(@event.Id);
+        var booking = Booking.CreatePending(@event.Id, userId);
 
         // Act
         var result = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
@@ -67,9 +78,10 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync(totalSeats: 5);
         var bookings = Enumerable.Range(1, 5)
-            .Select(_ => Booking.CreatePending(@event.Id))
+            .Select(_ => Booking.CreatePending(@event.Id, userId))
             .ToList();
 
         // Act
@@ -98,8 +110,9 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync();
-        var booking = Booking.CreatePending(@event.Id);
+        var booking = Booking.CreatePending(@event.Id, userId);
         var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
 
         // Act
@@ -139,8 +152,9 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync();
-        var booking = Booking.CreatePending(@event.Id);
+        var booking = Booking.CreatePending(@event.Id, userId);
         var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
 
         // Изменяем статус и сохраняем
@@ -207,8 +221,9 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync(totalSeats: 10);
-        var booking = Booking.CreatePending(@event.Id);
+        var booking = Booking.CreatePending(@event.Id, userId);
         await _bookingRepository.CreateAsync(booking, CancellationToken.None);
 
         @event.TryReserveSeats();
@@ -252,12 +267,13 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync(totalSeats: 5);
         var bookingIds = new List<Guid>();
 
         for (int i = 0; i < 3; i++)
         {
-            var booking = Booking.CreatePending(@event.Id);
+            var booking = Booking.CreatePending(@event.Id, userId);
             var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
             bookingIds.Add(created.Id);
         }
@@ -279,20 +295,21 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync(totalSeats: 5);
 
         // Создаём pending бронь
-        var pendingBooking = Booking.CreatePending(@event.Id);
+        var pendingBooking = Booking.CreatePending(@event.Id, userId);
         var createdPending = await _bookingRepository.CreateAsync(pendingBooking, CancellationToken.None);
 
         // Создаём и подтверждаем бронь
-        var confirmedBooking = Booking.CreatePending(@event.Id);
+        var confirmedBooking = Booking.CreatePending(@event.Id, userId);
         var createdConfirmed = await _bookingRepository.CreateAsync(confirmedBooking, CancellationToken.None);
         createdConfirmed.Confirm();
         await _bookingRepository.SaveChangesAsync(CancellationToken.None);
 
         // Создаём и отклоняем бронь
-        var rejectedBooking = Booking.CreatePending(@event.Id);
+        var rejectedBooking = Booking.CreatePending(@event.Id, userId);
         var createdRejected = await _bookingRepository.CreateAsync(rejectedBooking, CancellationToken.None);
         createdRejected.Reject();
         await _bookingRepository.SaveChangesAsync(CancellationToken.None);
@@ -318,8 +335,9 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync();
-        var booking = Booking.CreatePending(@event.Id);
+        var booking = Booking.CreatePending(@event.Id, userId);
         var created = await _bookingRepository.CreateAsync(booking, CancellationToken.None);
 
         // Act
@@ -344,12 +362,13 @@ public sealed class BookingRepositoryTests
     {
         // Arrange
         await _fixture.ResetDatabaseAsync();
+        var userId = await CreateTestUserAsync();
         var @event = await CreateTestEventAsync(totalSeats: 3);
 
         // Создаём три брони
-        var booking1 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id), CancellationToken.None);
-        var booking2 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id), CancellationToken.None);
-        var booking3 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id), CancellationToken.None);
+        var booking1 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id, userId), CancellationToken.None);
+        var booking2 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id, userId), CancellationToken.None);
+        var booking3 = await _bookingRepository.CreateAsync(Booking.CreatePending(@event.Id, userId), CancellationToken.None);
 
         // Act
         booking1.Confirm();

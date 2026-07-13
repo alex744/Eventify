@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using Ya.Events.Application.Abstractions.Services;
 using Ya.Events.Application.DTOs.Bookings;
 using Ya.Events.Application.DTOs.Events;
 using Ya.Events.Application.DTOs.Responses;
 using Ya.Events.Application.Mappers;
+using Ya.Events.WebApi.Extensions;
 
 namespace Ya.Events.WebApi.Controllers;
 
@@ -82,9 +84,12 @@ public class EventsController : ControllerBase
     /// Создать событие
     /// POST /events
     /// </summary>    
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status201Created, Type = typeof(EventResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> CreateAsync([FromBody] CreateEventRequest request, CancellationToken ct = default)
     {
@@ -96,9 +101,12 @@ public class EventsController : ControllerBase
     /// Обновить событие целиком
     /// PUT /events/{id}
     /// </summary>    
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(EventResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<ActionResult<EventResponse>> UpdateAsync(Guid id, [FromBody] UpdateEventRequest request, CancellationToken ct = default)
@@ -111,8 +119,11 @@ public class EventsController : ControllerBase
     /// Удалить событие
     /// DELETE /events/{id}
     /// </summary>    
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> DeleteAsync(Guid id, CancellationToken ct = default)
@@ -129,16 +140,22 @@ public class EventsController : ControllerBase
     /// <param name="ct">Токен отмены.</param>
     /// <returns>Бронь со статусом Pending; код 202 Accepted с Location в заголовке.</returns>
     /// <response code="202">Бронь успешно создана и находится в ожидании подтверждения.</response>
+    /// <response code="400">Событие уже началось.</response>
+    /// <response code="401">Требуется аутентификация.</response>
     /// <response code="404">Событие с указанным идентификатором не найдено.</response>
     /// <response code="409">Нет доступных мест для бронирования.</response>
+    [Authorize]
     [HttpPost("{eventId}/book")]
     [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(BookingResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
     public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
     {
-        var booking = await _bookingService.CreateBookingAsync(eventId, ct);
+        var userId = User.GetUserId();
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
         return AcceptedAtAction("GetBooking", "Bookings", new { id = booking.Id }, booking.ToResponse());
     }
 }

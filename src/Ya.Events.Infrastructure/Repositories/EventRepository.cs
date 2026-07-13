@@ -73,13 +73,9 @@ public class EventRepository : IEventRepository
         if (existing is null)
             return null;
 
-        existing.Title = entity.Title;
-        existing.StartAt = entity.StartAt;
-        existing.EndAt = entity.EndAt;
-        existing.TotalSeats = entity.TotalSeats;
-        existing.Description = entity.Description;
-
+        existing.Update(entity.Title, entity.StartAt, entity.EndAt, entity.Description);
         await _context.SaveChangesAsync(ct);
+
         return existing;
     }
 

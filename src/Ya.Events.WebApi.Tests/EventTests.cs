@@ -9,11 +9,13 @@ public class EventTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Success")]
-    public void Title_WithWhitespace_TrimsTitleAndCreatesEvent()
+    public void Create_WithWhitespace_TrimsTitleAndCreatesEvent()
     {
-        // Arrange & Act
+        // Arrange
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var createEvent = new Event(
+
+        // Act
+        var createEvent = Event.Create(
             title: "  Test Event  ",
             startAt: futureDate,
             endAt: futureDate.AddHours(2),
@@ -24,7 +26,7 @@ public class EventTests
     }
 
     /// <summary>
-    /// Проверяет, что конструктор класса Event выбрасывает исключение ArgumentException
+    /// Проверяет, что метод Create выбрасывает исключение ArgumentException
     /// при передаче некорректных данных:
     /// - пустой или состоящий из пробелов заголовок;
     /// - дата окончания раньше или равна дате начала.
@@ -32,38 +34,41 @@ public class EventTests
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void Constructor_WithInvalidData_ThrowsArgumentException()
+    public void Create_WithInvalidData_ThrowsArgumentException()
     {
-        // Act
+        // Arrange
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var exception1 = Assert.Throws<ArgumentException>(() => new Event("", futureDate, futureDate.AddHours(2), 10, "Описание"));
-        var exception2 = Assert.Throws<ArgumentException>(() => new Event("     ", futureDate, futureDate.AddHours(2), 10, "Описание"));
-        var exception3 = Assert.Throws<ArgumentException>(() => new Event("Корректный заголовок", futureDate.AddHours(2), futureDate, 1, "Описание"));
-        var exception4 = Assert.Throws<ArgumentException>(() => new Event("Заголовок", futureDate, futureDate.AddHours(2), 0, "Описание"));
-        var exception5 = Assert.Throws<ArgumentException>(() => new Event("Заголовок", futureDate, futureDate.AddHours(2), -5, "Описание"));
+
+        // Act
+        var exception1 = Assert.Throws<ArgumentException>(() => Event.Create("", futureDate, futureDate.AddHours(2), 10));
+        var exception2 = Assert.Throws<ArgumentException>(() => Event.Create("     ", futureDate, futureDate.AddHours(2), 10));
+        var exception3 = Assert.Throws<ArgumentException>(() => Event.Create("Корректный заголовок", futureDate.AddHours(2), futureDate, 1));
+        var exception4 = Assert.Throws<ArgumentException>(() => Event.Create("Заголовок", futureDate, futureDate.AddHours(2), 0));
+        var exception5 = Assert.Throws<ArgumentException>(() => Event.Create("Заголовок", futureDate, futureDate.AddHours(2), -5));
 
         // Assert
         Assert.Equal("Название события обязательно. (Parameter 'Title')", exception1.Message);
         Assert.Equal("Название события обязательно. (Parameter 'Title')", exception2.Message);
         Assert.Equal("Дата окончания должна быть позже даты начала. (Parameter 'EndAt')", exception3.Message);
-        Assert.Equal("Общее количество мест должно быть положительным. (Parameter 'TotalSeats')", exception4.Message);
-        Assert.Equal("Общее количество мест должно быть положительным. (Parameter 'TotalSeats')", exception5.Message);
+        Assert.Equal("Общее количество мест должно быть больше нуля. (Parameter 'TotalSeats')", exception4.Message);
+        Assert.Equal("Общее количество мест должно быть больше нуля. (Parameter 'TotalSeats')", exception5.Message);
     }
 
     /// <summary>
-    /// Проверяет, что при попытке присвоить свойству Title пустую строку или null
-    /// выбрасывается исключение ArgumentException с сообщением о том, что название события обязательно.
+    /// Проверяет, что при попытке обновить событие с пустым заголовком
+    /// выбрасывается исключение ArgumentException.
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void Title_WhenIsNullOrEmpty_ThrowsArgumentException()
+    public void Update_WithEmptyTitle_ThrowsArgumentException()
     {
         // Arrange        
-        var futureDate = DateTime.UtcNow.AddDays(1);
-        var newEvent = new Event("Событие", futureDate, futureDate.AddHours(2), 10, "Описание");
+        var startAt = DateTime.UtcNow.AddDays(1);
+        var endAt = startAt.AddHours(2);
+        var newEvent = Event.Create("Событие", startAt, endAt, 10, "Описание");
 
         // Act
-        var exception = Assert.Throws<ArgumentException>(() => newEvent.Title = "");
+        var exception = Assert.Throws<ArgumentException>(() => newEvent.Update("", startAt, endAt));
 
         // Assert
         Assert.Equal("Название события обязательно. (Parameter 'Title')", exception.Message);
@@ -71,38 +76,38 @@ public class EventTests
     }
 
     /// <summary>
-    /// Проверяет, что при создании события с датой начала в прошлом выбрасывается ArgumentException.
+    /// Проверяет, что при создании события с датой начала в прошлом 
+    /// выбрасывается исключение ArgumentException.
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void SetStartAt_WhenInPast_ThrowsArgumentException()
+    public void Create_WithStartDateInPast_ThrowsArgumentException()
     {
         // Arrange
-        var nowDate = DateTime.UtcNow.AddDays(1);
-        var createEvent = new Event("Test Event", nowDate, nowDate.AddHours(2), 10);
+        var pastDate = DateTime.UtcNow.AddDays(-1);
+        var futureDate = DateTime.UtcNow.AddDays(1);
 
         // Act        
-        var exception = Assert.Throws<ArgumentException>(() => createEvent.StartAt = nowDate.AddDays(-1));
+        var exception = Assert.Throws<ArgumentException>(() => Event.Create("Test Event", pastDate, futureDate, 10));
 
         // Assert        
         Assert.Equal("Дата начала не может быть в прошлом. (Parameter 'StartAt')", exception.Message);
     }
 
     /// <summary>
-    /// Проверяет, что при попытке установить свойству EndAt значение,
-    /// которое меньше или равно текущему StartAt, выбрасывается исключение ArgumentException
-    /// с соответствующим сообщением.
+    /// Проверяет, что при обновлении события с датой окончания, меньшей или равной дате начала,
+    /// выбрасывается исключение ArgumentException.
     /// </summary>
     [Fact]
     [Trait("Scenario", "Failure")]
-    public void SetEndAt_WhenEndDateBeforeStartDate_ThrowsArgumentException()
+    public void Update_WithEndDateBeforeStartDate_ThrowsArgumentException()
     {
         // Arrange        
         var futureDate = DateTime.UtcNow.AddDays(1);
-        var newEvent = new Event("Событие", futureDate, futureDate.AddHours(2), 10, "Описание");
+        var newEvent = Event.Create("Событие", futureDate, futureDate.AddHours(2), 10, "Описание");
 
         // Act        
-        var exception = Assert.Throws<ArgumentException>(() => newEvent.EndAt = futureDate);
+        var exception = Assert.Throws<ArgumentException>(() => newEvent.Update("Событие", futureDate, futureDate));
 
         // Assert        
         Assert.Equal("Дата окончания должна быть позже даты начала. (Parameter 'EndAt')", exception.Message);

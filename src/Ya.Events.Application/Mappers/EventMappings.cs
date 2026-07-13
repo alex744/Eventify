@@ -19,7 +19,7 @@ public static class EventMappings
 
     public static Event ToEvent(this CreateEventRequest request)
     {
-        return new Event(
+        return Event.Create(
             request.Title,
             request.StartAt!.Value,
             request.EndAt!.Value,
@@ -30,7 +30,7 @@ public static class EventMappings
 
     public static Event ToEvent(this UpdateEventRequest request)
     {
-        return new Event(
+        return Event.Create(
             request.Title,
             request.StartAt!.Value,
             request.EndAt!.Value,
