@@ -75,6 +75,19 @@ public class BookingService : IBookingService
         => await _repository.GetByIdAsync(bookingId, ct);
 
     /// <summary>
+    /// Возвращает бронь по её идентификатору с проверкой принадлежности пользователю.
+    /// </summary>
+    /// <param name="bookingId">Идентификатор брони.</param>
+    /// <param name="userId">Идентификатор пользователя, запрашивающего бронь.</param>
+    /// <param name="ct">Токен отмены.</param>
+    /// <returns>Бронь, если она принадлежит пользователю; иначе null.</returns>    
+    public async Task<Booking?> GetBookingByIdAsync(Guid bookingId, Guid userId, CancellationToken ct = default)
+    {
+        var booking = await _repository.GetByIdAsync(bookingId, ct);
+        return booking?.UserId == userId ? booking : null;
+    }
+
+    /// <summary>
     /// Отменяет бронь с проверкой прав.    
     /// </summary>
     /// <param name="bookingId">Идентификатор брони.</param>

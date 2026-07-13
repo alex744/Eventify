@@ -29,6 +29,13 @@ public class WebApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // ВАЖНО: Настраиваем конфигурацию ПЕРЕД базовой конфигурацией
+        // Используем UseSetting для установки значений конфигурации с наивысшим приоритетом
+        builder.UseSetting("Jwt:Secret", "test-secret-key-for-e2e-tests-must-be-at-least-32-characters-long!");
+        builder.UseSetting("Jwt:Issuer", "TestIssuer");
+        builder.UseSetting("Jwt:Audience", "TestAudience");
+        builder.UseSetting("Jwt:LifetimeMinutes", "60");
+
         builder.ConfigureServices(services =>
         {
             // Удаляем существующий DbContext, зарегистрированный в Program.cs

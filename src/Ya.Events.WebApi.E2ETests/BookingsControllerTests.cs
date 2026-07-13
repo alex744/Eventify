@@ -32,6 +32,8 @@ public class BookingsControllerTests : IClassFixture<WebApiFactory>
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
     }
 
+    #region CreateBookingAsync Tests
+
     /// <summary>
     /// Проверяет, что создание брони возвращает статус 202 Accepted и корректный заголовок Location.
     /// </summary>
@@ -131,4 +133,64 @@ public class BookingsControllerTests : IClassFixture<WebApiFactory>
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
+
+    #endregion
+
+    #region CancelBookingAsync Tests
+
+    /// <summary>
+    /// Проверяет, что пользователь получает 403 Forbidden при попытке отмены чужой брони.
+    /// Это критический тест авторизации.
+    /// </summary>
+    [Fact]
+    public async Task CancelBookingAsync_NonOwnerAttemptsToCancelOthersBooking_Returns403Forbidden()
+    {
+        // Arrange
+        var ct = TestContext.Current.CancellationToken;
+
+        // Создаём событие как администратор
+        var adminClient = _factory.CreateClient();
+        var adminToken = await _factory.CreateUserAndGetTokenAsync("admin_user", "password", UserRole.Admin, ct);
+        adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+        var createEventRequest = new CreateEventRequest
+        {
+            Title = "Событие для проверки авторизации",
+            StartAt = DateTime.UtcNow.AddDays(1),
+            EndAt = DateTime.UtcNow.AddDays(3),
+            TotalSeats = 5
+        };
+
+        var createResponse = await adminClient.PostAsJsonAsync("/events", createEventRequest, ct);
+        createResponse.EnsureSuccessStatusCode();
+        var createdEvent = await createResponse.Content.ReadFromJsonAsync<EventResponse>(ct);
+        Assert.NotNull(createdEvent);
+
+        // Первый пользователь создаёт бронь
+        var firstUserClient = _factory.CreateClient();
+        var firstUserToken = await _factory.CreateUserAndGetTokenAsync("user_first", "password", UserRole.User, ct);
+        firstUserClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", firstUserToken);
+
+        var bookResponse = await firstUserClient.PostAsync($"/events/{createdEvent.Id}/book", null, ct);
+        bookResponse.EnsureSuccessStatusCode();
+        var booking = await bookResponse.Content.ReadFromJsonAsync<BookingResponse>(ct);
+        Assert.NotNull(booking);
+
+        // Второй пользователь пытается отменить бронь первого пользователя
+        var secondUserClient = _factory.CreateClient();
+        var secondUserToken = await _factory.CreateUserAndGetTokenAsync("user_second", "password", UserRole.User, ct);
+        secondUserClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", secondUserToken);
+
+        // Act — второй пользователь пытается отменить чужую бронь
+        var cancelResponse = await secondUserClient.DeleteAsync($"/bookings/{booking.Id}", ct);
+
+        // Assert — должны получить 403 Forbidden
+        Assert.Equal(HttpStatusCode.Forbidden, cancelResponse.StatusCode);
+
+        // Проверяем, что в ответе есть описание ошибки
+        var errorContent = await cancelResponse.Content.ReadAsStringAsync(ct);
+        Assert.NotEmpty(errorContent);
+    }
+
+    #endregion
 }

@@ -863,6 +863,329 @@ public sealed class BookingServiceTests : IDisposable
 
     #endregion
 
+    #region CancelBookingAsync Tests
+
+    /// <summary>
+    /// Проверяет, что владелец брони может успешно отменить свою бронь.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_OwnerCancelsOwnBooking_Succeeds()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var bookingId = booking.Id;
+
+        // Act
+        var result = await _bookingService.CancelBookingAsync(bookingId, userId, isAdmin: false, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+        Assert.NotNull(result.ProcessedAt);
+    }
+
+    /// <summary>
+    /// Проверяет, что обычный пользователь не может отменить бронь другого пользователя
+    /// и получает ForbiddenException.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_NonOwnerAttemptsToCancel_ThrowsForbiddenException()
+    {
+        // Arrange
+        var bookingOwnerId = Guid.NewGuid();
+        var anotherUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, bookingOwnerId, ct);
+        var bookingId = booking.Id;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<ForbiddenException>(() => _bookingService.CancelBookingAsync(bookingId, anotherUserId, isAdmin: false, ct));
+        Assert.Contains("Недостаточно прав", exception.Message);
+    }
+
+    /// <summary>
+    /// Проверяет, что администратор может отменить любую бронь, включая чужую.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_AdminCancelsSomeoneElsesBooking_Succeeds()
+    {
+        // Arrange
+        var bookingOwnerId = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, bookingOwnerId, ct);
+        var bookingId = booking.Id;
+
+        // Act
+        var result = await _bookingService.CancelBookingAsync(bookingId, adminUserId, isAdmin: true, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+        Assert.NotNull(result.ProcessedAt);
+    }
+
+    /// <summary>
+    /// Проверяет, что администратор может отменить собственную бронь.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_AdminCancelsOwnBooking_Succeeds()
+    {
+        // Arrange
+        var adminUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, adminUserId, ct);
+        var bookingId = booking.Id;
+
+        // Act
+        var result = await _bookingService.CancelBookingAsync(bookingId, adminUserId, isAdmin: true, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+        Assert.NotNull(result.ProcessedAt);
+    }
+
+    /// <summary>
+    /// Проверяет, что попытка отмены несуществующей брони приводит к NotFoundException,
+    /// даже если это администратор.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_NonexistentBookingAsAdmin_ThrowsNotFoundException()
+    {
+        // Arrange
+        var adminUserId = Guid.NewGuid();
+        var nonexistentBookingId = Guid.NewGuid();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _bookingService.CancelBookingAsync(nonexistentBookingId, adminUserId, isAdmin: true, ct));
+        Assert.Contains(nonexistentBookingId.ToString(), exception.Message);
+    }
+
+    /// <summary>
+    /// Проверяет, что попытка отмены несуществующей брони приводит к NotFoundException
+    /// для обычного пользователя.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_NonexistentBookingAsUser_ThrowsNotFoundException()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var nonexistentBookingId = Guid.NewGuid();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => _bookingService.CancelBookingAsync(nonexistentBookingId, userId, isAdmin: false, ct));
+        Assert.Contains(nonexistentBookingId.ToString(), exception.Message);
+    }
+
+    /// <summary>
+    /// Проверяет идемпотентность отмены: при повторной отмене собственной брони
+    /// пользователь не получает исключение.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_CancelAlreadyCancelledOwnBooking_Succeeds()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var bookingId = booking.Id;
+
+        // Первая отмена
+        await _bookingService.CancelBookingAsync(bookingId, userId, isAdmin: false, ct);
+
+        // Act - вторая отмена той же брони
+        var result = await _bookingService.CancelBookingAsync(bookingId, userId, isAdmin: false, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+    }
+
+    /// <summary>
+    /// Проверяет, что администратор может повторно отменить уже отменённую бронь (идемпотентность).
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_AdminCancelsAlreadyCancelledBooking_Succeeds()
+    {
+        // Arrange
+        var bookingOwnerId = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, bookingOwnerId, ct);
+        var bookingId = booking.Id;
+
+        // Первая отмена
+        await _bookingService.CancelBookingAsync(bookingId, adminUserId, isAdmin: true, ct);
+
+        // Act - вторая отмена
+        var result = await _bookingService.CancelBookingAsync(bookingId, adminUserId, isAdmin: true, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+    }
+
+    /// <summary>
+    /// Проверяет, что при отмене чужой брони обычный пользователь не может получить доступ к ней
+    /// через проверку прав, несмотря на наличие ID.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_UnauthorizedUserTriesMultipleTimes_AlwaysThrowsForbidden()
+    {
+        // Arrange
+        var bookingOwnerId = Guid.NewGuid();
+        var unauthorizedUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, bookingOwnerId, ct);
+        var bookingId = booking.Id;
+
+        // Act & Assert - попытка отмены несколько раз
+        for (int i = 0; i < 3; i++)
+        {
+            var exception = await Assert.ThrowsAsync<ForbiddenException>(() => _bookingService.CancelBookingAsync(bookingId, unauthorizedUserId, isAdmin: false, ct));
+            Assert.Contains("Недостаточно прав", exception.Message);
+        }
+    }
+
+    /// <summary>
+    /// Проверяет, что пользователь, владелец брони, может отменить её после того,
+    /// как администратор её уже отменил (хотя это идемпотентная операция).
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_OwnerCancelsAfterAdminCancels_Succeeds()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var bookingId = booking.Id;
+
+        // Администратор отменяет бронь
+        await _bookingService.CancelBookingAsync(bookingId, adminUserId, isAdmin: true, ct);
+
+        // Act - владелец тоже пытается отменить (идемпотентно)
+        var result = await _bookingService.CancelBookingAsync(bookingId, userId, isAdmin: false, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+    }
+
+    /// <summary>
+    /// Проверяет, что после отмены брони место в событии освобождается.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_AfterOwnerCancels_SeatsAreReleased()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync(totalSeats: 1);
+        var ct = TestContext.Current.CancellationToken;
+
+        var eventBefore = await _eventService.GetByIdAsync(eventId, ct);
+        var seatsBeforeBooking = eventBefore!.AvailableSeats;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var eventAfterBooking = await _eventService.GetByIdAsync(eventId, ct);
+        var seatsAfterBooking = eventAfterBooking!.AvailableSeats;
+
+        // Act - отмена брони
+        await _bookingService.CancelBookingAsync(booking.Id, userId, isAdmin: false, ct);
+        var eventAfterCancellation = await _eventService.GetByIdAsync(eventId, ct);
+        var seatsAfterCancellation = eventAfterCancellation!.AvailableSeats;
+
+        // Assert
+        Assert.Equal(1, seatsBeforeBooking);
+        Assert.Equal(0, seatsAfterBooking);
+        Assert.Equal(1, seatsAfterCancellation);
+    }
+
+    /// <summary>
+    /// Проверяет, что администратор может отменить бронь и место будет освобождено.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_AfterAdminCancels_SeatsAreReleased()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync(totalSeats: 1);
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var eventAfterBooking = await _eventService.GetByIdAsync(eventId, ct);
+        var seatsAfterBooking = eventAfterBooking!.AvailableSeats;
+
+        // Act - администратор отменяет бронь
+        await _bookingService.CancelBookingAsync(booking.Id, adminUserId, isAdmin: true, ct);
+        var eventAfterCancellation = await _eventService.GetByIdAsync(eventId, ct);
+        var seatsAfterCancellation = eventAfterCancellation!.AvailableSeats;
+
+        // Assert
+        Assert.Equal(0, seatsAfterBooking);
+        Assert.Equal(1, seatsAfterCancellation);
+    }
+
+    /// <summary>
+    /// Проверяет, что не-администратор не может отменить чужую бронь,
+    /// даже если он пытается использовать параметр isAdmin = true (параметр игнорируется на стороне клиента).
+    /// Тест демонстрирует, что авторизация проверяется серверной логикой.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task CancelBookingAsync_UserWithFalseAdminFlag_CannotCancelSomeoneElsesBooking()
+    {
+        // Arrange
+        var bookingOwnerId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+        var eventId = await CreateTestEventAsync();
+        var ct = TestContext.Current.CancellationToken;
+
+        var booking = await _bookingService.CreateBookingAsync(eventId, bookingOwnerId, ct);
+        var bookingId = booking.Id;
+
+        // Act & Assert
+        // Даже если isAdmin = false, пользователь не может отменить чужую бронь
+        var exception = await Assert.ThrowsAsync<ForbiddenException>(() => _bookingService.CancelBookingAsync(bookingId, otherUserId, isAdmin: false, ct));
+        Assert.Contains("Недостаточно прав", exception.Message);
+    }
+
+    #endregion
+
     #region Concurrency Tests
 
     /// <summary>

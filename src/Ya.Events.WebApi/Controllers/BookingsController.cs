@@ -31,7 +31,7 @@ public class BookingsController : ControllerBase
     public async Task<ActionResult<BookingResponse>> GetBookingAsync(Guid id, CancellationToken ct = default)
     {
         var userId = User.GetUserId();
-        var booking = await _bookingService.GetBookingByIdAsync(id, ct);
+        var booking = await _bookingService.GetBookingByIdAsync(id, userId, ct);
         if (booking == null)
             return NotFound(new ProblemDetails
             {
