@@ -861,6 +861,56 @@ public sealed class BookingServiceTests : IDisposable
         Assert.NotNull(result.ProcessedAt);
     }
 
+    /// <summary>
+    /// Проверяет, что при получении брони другого пользователя используя перегруженный метод
+    /// GetBookingByIdAsync(bookingId, userId) возвращается null, если бронь принадлежит другому пользователю.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task GetBookingByIdAsync_WithUserIdCheck_WhenBookingBelongsToAnotherUser_ReturnsNull()
+    {
+        // Arrange
+        var bookingOwnerId = Guid.NewGuid();
+        var anotherUserId = Guid.NewGuid();
+        var ct = TestContext.Current.CancellationToken;
+        var eventId = await CreateTestEventAsync();
+
+        var created = await _bookingService.CreateBookingAsync(eventId, bookingOwnerId, ct);
+        var bookingId = created.Id;
+
+        // Act
+        var result = await _bookingService.GetBookingByIdAsync(bookingId, anotherUserId, ct);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    /// <summary>
+    /// Проверяет, что при получении собственной брони используя перегруженный метод
+    /// GetBookingByIdAsync(bookingId, userId) возвращается корректная бронь.
+    /// </summary>
+    [Fact]
+    [Trait("Scenario", "Authorization")]
+    public async Task GetBookingByIdAsync_WithUserIdCheck_WhenBookingBelongsToUser_ReturnsBooking()
+    {
+        // Arrange
+        var userId = Guid.NewGuid();
+        var ct = TestContext.Current.CancellationToken;
+        var eventId = await CreateTestEventAsync();
+
+        var created = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        var bookingId = created.Id;
+
+        // Act
+        var result = await _bookingService.GetBookingByIdAsync(bookingId, userId, ct);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(bookingId, result.Id);
+        Assert.Equal(userId, result.UserId);
+        Assert.Equal(created.EventId, result.EventId);
+    }
+
     #endregion
 
     #region CancelBookingAsync Tests
