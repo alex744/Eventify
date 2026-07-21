@@ -1,4 +1,4 @@
-namespace Ya.Events.Domain.ValueObjects;
+namespace Ya.Users.Domain.ValueObjects;
 
 /// <summary>
 /// Роль пользователя в системе.

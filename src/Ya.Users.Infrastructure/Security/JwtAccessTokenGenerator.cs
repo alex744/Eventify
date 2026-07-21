@@ -3,10 +3,10 @@ using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
-using Ya.Events.Application.Abstractions.Security;
-using Ya.Events.Domain.ValueObjects;
+using Ya.Users.Application.Abstractions.Security;
+using Ya.Users.Domain.ValueObjects;
 
-namespace Ya.Events.Infrastructure.Security;
+namespace Ya.Users.Infrastructure.Security;
 
 public sealed class JwtAccessTokenGenerator : IAccessTokenGenerator
 {

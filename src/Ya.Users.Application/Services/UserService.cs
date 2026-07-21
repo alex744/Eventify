@@ -1,13 +1,13 @@
 using System.ComponentModel.DataAnnotations;
-using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Application.Abstractions.Security;
-using Ya.Events.Application.Abstractions.Services;
-using Ya.Events.Application.DTOs.Auth;
-using Ya.Events.Domain.Entities;
-using Ya.Events.Domain.Exceptions;
-using Ya.Events.Domain.ValueObjects;
+using Ya.Users.Application.Abstractions.Persistence.Repositories;
+using Ya.Users.Application.Abstractions.Security;
+using Ya.Users.Application.Abstractions.Services;
+using Ya.Users.Application.DTOs;
+using Ya.Users.Domain.Entities;
+using Ya.Users.Domain.Exceptions;
+using Ya.Users.Domain.ValueObjects;
 
-namespace Ya.Events.Application.Services;
+namespace Ya.Users.Application.Services;
 
 public class UserService : IUserService
 {

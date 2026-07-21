@@ -1,6 +1,6 @@
-using Ya.Events.Application.DTOs.Auth;
+using Ya.Users.Application.DTOs;
 
-namespace Ya.Events.Application.Abstractions.Services;
+namespace Ya.Users.Application.Abstractions.Services;
 
 public interface IUserService
 {

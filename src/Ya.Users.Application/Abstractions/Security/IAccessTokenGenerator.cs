@@ -1,6 +1,6 @@
-﻿using Ya.Events.Domain.ValueObjects;
+﻿using Ya.Users.Domain.ValueObjects;
 
-namespace Ya.Events.Application.Abstractions.Security;
+namespace Ya.Users.Application.Abstractions.Security;
 
 public interface IAccessTokenGenerator
 {

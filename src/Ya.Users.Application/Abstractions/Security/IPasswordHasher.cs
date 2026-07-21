@@ -1,4 +1,4 @@
-﻿namespace Ya.Events.Application.Abstractions.Security;
+﻿namespace Ya.Users.Application.Abstractions.Security;
 
 public interface IPasswordHasher
 {

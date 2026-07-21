@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Domain.Entities;
-using Ya.Events.Infrastructure.Persistence;
+using Ya.Users.Application.Abstractions.Persistence.Repositories;
+using Ya.Users.Domain.Entities;
+using Ya.Users.Infrastructure.Persistence;
 
-namespace Ya.Events.Infrastructure.Repositories;
+namespace Ya.Users.Infrastructure.Repositories;
 
 public class UserRepository : IUserRepository
 {

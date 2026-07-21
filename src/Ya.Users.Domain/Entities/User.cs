@@ -1,6 +1,6 @@
-using Ya.Events.Domain.ValueObjects;
+using Ya.Users.Domain.ValueObjects;
 
-namespace Ya.Events.Domain.Entities;
+namespace Ya.Users.Domain.Entities;
 
 /// <summary>
 /// Пользователь системы.
@@ -26,11 +26,6 @@ public sealed class User
     /// Роль пользователя в системе.
     /// </summary>
     public UserRole Role { get; private set; }
-
-    /// <summary>
-    /// Список бронирований, связанных с пользователем.
-    /// </summary>
-    public ICollection<Booking> Bookings { get; private set; } = [];
 
     private User()
     {

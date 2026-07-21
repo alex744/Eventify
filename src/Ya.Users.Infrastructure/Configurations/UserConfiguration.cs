@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Ya.Events.Domain.Entities;
+using Ya.Users.Domain.Entities;
 
-namespace Ya.Events.Infrastructure.Configurations;
+namespace Ya.Users.Infrastructure.Configurations;
 
 internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
 {
@@ -34,10 +34,5 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasIndex(u => u.Login)
             .IsUnique();
-
-        builder.HasMany(u => u.Bookings)
-            .WithOne(b => b.User)
-            .HasForeignKey(b => b.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
     }
 }

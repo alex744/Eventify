@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Ya.Events.Application.Abstractions.Services;
-using Ya.Events.Application.DTOs.Auth;
+using Ya.Users.Application.Abstractions.Services;
+using Ya.Users.Application.DTOs;
 
-namespace Ya.Events.WebApi.Controllers;
+namespace Ya.Users.Api.Controllers;
 
 [ApiController]
 [Route("[controller]")]

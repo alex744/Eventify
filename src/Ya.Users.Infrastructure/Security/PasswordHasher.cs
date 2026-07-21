@@ -1,8 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
-using Ya.Events.Application.Abstractions.Security;
+using Ya.Users.Application.Abstractions.Security;
 
-namespace Ya.Events.Infrastructure.Security;
+namespace Ya.Users.Infrastructure.Security;
 
 public sealed class PasswordHasher : IPasswordHasher
 {

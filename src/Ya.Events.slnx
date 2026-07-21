@@ -1,4 +1,14 @@
 <Solution>
+  <Folder Name="/Services/" />
+  <Folder Name="/Services/Bookings/" />
+  <Folder Name="/Services/Events/" />
+  <Folder Name="/Services/Users/">
+    <Project Path="Ya.Users.Api/Ya.Users.Api.csproj" Id="0b1c90c0-b949-4e37-90bd-0eaed276100d" />
+    <Project Path="Ya.Users.Application/Ya.Users.Application.csproj" Id="72c5a470-1a77-487c-bf54-0e86bedc549c" />
+    <Project Path="Ya.Users.Domain/Ya.Users.Domain.csproj" Id="8a335b0e-d518-4cad-86ae-ad6f5fc59a19" />
+    <Project Path="Ya.Users.Infrastructure/Ya.Users.Infrastructure.csproj" Id="34b898fa-15e0-40a6-b61a-5f9c09b5f436" />
+  </Folder>
+  <Folder Name="/Shared/" />
   <Project Path="Ya.Events.Application/Ya.Events.Application.csproj" Id="3fcb2d49-0b07-42e5-88b1-12f4056245f7" />
   <Project Path="Ya.Events.Domain/Ya.Events.Domain.csproj" Id="cef79d17-5b6c-478a-8f5d-dad18630ca49" />
   <Project Path="Ya.Events.Infrastructure/Ya.Events.Infrastructure.csproj" Id="698ab7f0-1496-48d9-9090-865e4832bf4a" />

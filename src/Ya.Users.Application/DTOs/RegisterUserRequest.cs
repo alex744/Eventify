@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Ya.Events.Application.DTOs.Auth;
+namespace Ya.Users.Application.DTOs;
 
 public record RegisterUserRequest
 {

@@ -1,6 +1,6 @@
-using Ya.Events.Domain.Entities;
+using Ya.Users.Domain.Entities;
 
-namespace Ya.Events.Application.Abstractions.Persistence.Repositories;
+namespace Ya.Users.Application.Abstractions.Persistence.Repositories;
 
 public interface IUserRepository
 {
