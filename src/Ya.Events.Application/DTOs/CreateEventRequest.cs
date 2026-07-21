@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using Ya.Events.Application.Validators.Attributes;
 
-namespace Ya.Events.Application.DTOs.Events;
+namespace Ya.Events.Application.DTOs;
 
 public record CreateEventRequest
 {

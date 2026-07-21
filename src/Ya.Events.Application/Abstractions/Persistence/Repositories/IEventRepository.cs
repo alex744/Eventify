@@ -1,4 +1,4 @@
-using Ya.Events.Application.DTOs.Responses;
+using Ya.Events.Application.DTOs;
 using Ya.Events.Domain.Entities;
 
 namespace Ya.Events.Application.Abstractions.Persistence.Repositories;

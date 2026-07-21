@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using Ya.Events.Application.DTOs.Events;
+using Ya.Events.Application.DTOs;
 
 namespace Ya.Events.Application.Validators.Attributes;
 

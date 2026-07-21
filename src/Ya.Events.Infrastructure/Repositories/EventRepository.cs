@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Application.DTOs.Responses;
+using Ya.Events.Application.DTOs;
 using Ya.Events.Domain.Entities;
 using Ya.Events.Infrastructure.Persistence;
 

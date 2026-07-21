@@ -1,26 +1,24 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using Ya.Events.Api.Extensions;
 using Ya.Events.Application.Abstractions.Services;
-using Ya.Events.Application.DTOs.Bookings;
-using Ya.Events.Application.DTOs.Events;
-using Ya.Events.Application.DTOs.Responses;
+using Ya.Events.Application.DTOs;
 using Ya.Events.Application.Mappers;
-using Ya.Events.WebApi.Extensions;
 
-namespace Ya.Events.WebApi.Controllers;
+namespace Ya.Events.Api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
 public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
-    private readonly IBookingService _bookingService;
+    //private readonly IBookingService _bookingService;
 
-    public EventsController(IEventService eventService, IBookingService bookingService)
+    public EventsController(IEventService eventService/*, IBookingService bookingService*/)
     {
         _eventService = eventService;
-        _bookingService = bookingService;
+        //_bookingService = bookingService;
     }
 
     /// <summary>
@@ -131,7 +129,7 @@ public class EventsController : ControllerBase
         await _eventService.DeleteAsync(id, ct);
         return NoContent();
     }
-
+    /*
     /// <summary>
     /// Создание брони для события.
     /// POST /events/{eventId}/book
@@ -157,5 +155,5 @@ public class EventsController : ControllerBase
         var userId = User.GetUserId();
         var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
         return AcceptedAtAction("GetBooking", "Bookings", new { id = booking.Id }, booking.ToResponse());
-    }
+    }*/
 }

@@ -6,11 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Application.Abstractions.Security;
 using Ya.Events.Infrastructure.Persistence;
 using Ya.Events.Infrastructure.Repositories;
 using Ya.Events.Infrastructure.Security;
-using Ya.Events.Infrastructure.Services;
 
 namespace Ya.Events.Infrastructure;
 
@@ -62,11 +60,6 @@ public static class DependencyInjectionExtensions
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IEventRepository, EventRepository>();
-        services.AddScoped<IBookingRepository, BookingRepository>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<IAccessTokenGenerator, JwtAccessTokenGenerator>();
-        services.AddHostedService<BookingProcessorService>();
 
         return services;
     }
