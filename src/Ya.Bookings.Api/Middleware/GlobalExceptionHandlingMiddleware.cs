@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using Ya.Events.Domain.Exceptions;
+using Ya.Bookings.Domain.Exceptions;
 
-namespace Ya.Events.WebApi.Middleware;
+namespace Ya.Bookings.Api.Middleware;
 
 public class GlobalExceptionHandlingMiddleware
 {

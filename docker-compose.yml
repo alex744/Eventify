@@ -60,6 +60,25 @@ services:
       Jwt__Audience: ${JWT_AUDIENCE}
       Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES}
 
+  bookings-api:
+    build:
+      context: ./src
+      dockerfile: Ya.Bookings.Api/Dockerfile
+    container_name: bookings_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${BOOKINGS_API_PORT}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Host=${BOOKINGS_DB_HOST};Port=${BOOKINGS_DB_PORT};Database=${BOOKINGS_DB_NAME};Username=${DB_USER};Password=${DB_PASSWORD}
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: ${JWT_ISSUER}
+      Jwt__Audience: ${JWT_AUDIENCE}
+      Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES}
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: postgres_pgadmin

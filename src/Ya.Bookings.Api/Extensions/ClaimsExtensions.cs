@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace Ya.Events.WebApi.Extensions;
+namespace Ya.Bookings.Api.Extensions;
 
 /// <summary>
 /// Вспомогательные методы для работы с claims пользователя.

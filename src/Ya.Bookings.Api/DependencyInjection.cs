@@ -1,7 +1,7 @@
 ﻿using Microsoft.OpenApi;
-using Ya.Events.WebApi.Middleware;
+using Ya.Bookings.Api.Middleware;
 
-namespace Ya.Events.WebApi;
+namespace Ya.Bookings.Api;
 
 public static class DependencyInjectionExtensions
 {

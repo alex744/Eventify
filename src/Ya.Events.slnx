@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Services/" />
   <Folder Name="/Services/Bookings/">
+    <Project Path="Ya.Bookings.Api/Ya.Bookings.Api.csproj" Id="23d1c3ab-c87c-40cc-a28c-8d327fe3739a" />
     <Project Path="Ya.Bookings.Application/Ya.Bookings.Application.csproj" Id="956b4f32-2b29-4d7e-aa84-90da6a93b100" />
     <Project Path="Ya.Bookings.Domain/Ya.Bookings.Domain.csproj" Id="0d704497-caf6-4cf7-be26-e87c99937a44" />
     <Project Path="Ya.Bookings.Infrastructure/Ya.Bookings.Infrastructure.csproj" Id="ca5cb64c-3272-4d73-a875-f8081136605f" />
@@ -21,5 +22,4 @@
   <Project Path="Ya.Events.WebApi.E2ETests/Ya.Events.WebApi.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
   <Project Path="Ya.Events.WebApi.IntegrationTests/Ya.Events.WebApi.IntegrationTests.csproj" Id="bae72fc6-f7c0-4079-88b5-325b5618b7ce" />
   <Project Path="Ya.Events.WebApi.Tests/Ya.Events.WebApi.Tests.csproj" Id="26c1b9c4-cfd1-4ca3-aa2e-4aab2fdb3da4" />
-  <Project Path="Ya.Events.WebApi/Ya.Events.WebApi.csproj" Id="585bb791-9126-45c7-b344-c9049aff1c38" />
 </Solution>

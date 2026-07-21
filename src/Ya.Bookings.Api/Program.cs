@@ -1,11 +1,12 @@
-using Ya.Events.Application;
-using Ya.Events.Infrastructure;
-using Ya.Events.WebApi;
+using Ya.Bookings.Api;
+using Ya.Bookings.Application;
+using Ya.Bookings.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Добавление сервисов в контейнер.
 builder.Services.AddControllers();
+builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGenWithJwt();
 builder.Services.AddApplicationServices();
@@ -18,6 +19,7 @@ var app = builder.Build();
 // Конфигурация Swagger для разработки.
 if (app.Environment.IsDevelopment())
 {
+    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }

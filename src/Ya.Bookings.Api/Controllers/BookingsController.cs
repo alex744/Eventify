@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Ya.Events.Application.Abstractions.Services;
-using Ya.Events.Application.DTOs.Bookings;
-using Ya.Events.Application.Mappers;
-using Ya.Events.WebApi.Extensions;
+using Ya.Bookings.Application.Abstractions.Services;
+using Ya.Bookings.Application.DTOs;
+using Ya.Bookings.Application.Mappers;
+using Ya.Bookings.Api.Extensions;
 
-namespace Ya.Events.WebApi.Controllers;
+namespace Ya.Bookings.Api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
