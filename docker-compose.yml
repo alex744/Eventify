@@ -22,6 +22,51 @@ services:
       timeout: 5s
       retries: 5
 
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: eventapi-kafka
+    ports:
+      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: "INTERNAL://0.0.0.0:${KAFKA_INTERNAL_PORT},EXTERNAL://0.0.0.0:${KAFKA_EXTERNAL_PORT},CONTROLLER://0.0.0.0:${KAFKA_CONTROLLER_PORT}"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://${KAFKA_HOST}:${KAFKA_INTERNAL_PORT},EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@${KAFKA_HOST}:${KAFKA_CONTROLLER_PORT}"
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:${KAFKA_INTERNAL_PORT} --list || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      KAFKA_TOPICS: ${KAFKA_TOPICS}
+    command: 
+      - /bin/sh
+      - -c
+      - |
+        echo "Creating topics..."
+        IFS=',' read -r -a topics <<< "$$KAFKA_TOPICS"
+        for topic in "$${topics[@]}"; do
+          echo "Creating topic: $$topic"
+          /usr/bin/kafka-topics --create --topic "$$topic" --bootstrap-server "$$KAFKA_BOOTSTRAP_SERVERS" --partitions 3 --replication-factor 1 --if-not-exists
+        done
+        echo "Topics created successfully!"
+
   users-api:
     build:
       context: ./src
@@ -30,6 +75,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "${USERS_API_PORT}:8080"
     environment:
@@ -49,6 +98,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "${EVENTS_API_PORT}:8080"
     environment:
@@ -59,6 +112,8 @@ services:
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
       Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES}
+      Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS}
+      Kafka__ConsumerGroup: ${KAFKA_CONSUMER_GROUP}
 
   bookings-api:
     build:
@@ -68,6 +123,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     ports:
       - "${BOOKINGS_API_PORT}:8080"
     environment:
@@ -78,6 +137,8 @@ services:
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
       Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES}
+      Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS}
+      Kafka__GroupId: ${KAFKA_PRODUCER_GROUP}
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -97,3 +158,4 @@ services:
 volumes:
   postgres_data:
   pgadmin_data:
+  kafka_data:
