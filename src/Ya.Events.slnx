@@ -27,5 +27,7 @@
   <Folder Name="/Shared/">
     <Project Path="Ya.Shared.Contracts/Ya.Shared.Contracts.csproj" Id="e6bdc34f-1a1f-49d3-8f11-3dde05b8f001" />
   </Folder>
-  <Project Path="Ya.Events.WebApi.E2ETests/Ya.Events.WebApi.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
+  <Folder Name="/Tests/">
+    <Project Path="Ya.E2ETests/Ya.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
+  </Folder>
 </Solution>
