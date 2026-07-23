@@ -18,7 +18,9 @@
     <Project Path="Ya.Users.Domain/Ya.Users.Domain.csproj" Id="8a335b0e-d518-4cad-86ae-ad6f5fc59a19" />
     <Project Path="Ya.Users.Infrastructure/Ya.Users.Infrastructure.csproj" Id="34b898fa-15e0-40a6-b61a-5f9c09b5f436" />
   </Folder>
-  <Folder Name="/Shared/" />
+  <Folder Name="/Shared/">
+    <Project Path="Ya.Shared.Contracts/Ya.Shared.Contracts.csproj" Id="e6bdc34f-1a1f-49d3-8f11-3dde05b8f001" />
+  </Folder>
   <Project Path="Ya.Events.WebApi.E2ETests/Ya.Events.WebApi.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
   <Project Path="Ya.Events.WebApi.IntegrationTests/Ya.Events.WebApi.IntegrationTests.csproj" Id="bae72fc6-f7c0-4079-88b5-325b5618b7ce" />
   <Project Path="Ya.Events.WebApi.Tests/Ya.Events.WebApi.Tests.csproj" Id="26c1b9c4-cfd1-4ca3-aa2e-4aab2fdb3da4" />
