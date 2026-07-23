@@ -58,10 +58,7 @@ public class GlobalExceptionHandlingMiddleware
         => ex switch
         {
             ValidationException ve => StatusCodes.Status400BadRequest,
-            //PastEventBookingException pebe => StatusCodes.Status400BadRequest,
             NotFoundException nfe => StatusCodes.Status404NotFound,
-            //NoAvailableSeatsException nase => StatusCodes.Status409Conflict,
-            //TooManyActiveBookingsException tmab => StatusCodes.Status409Conflict,
             ForbiddenException fex => StatusCodes.Status403Forbidden,
             _ => StatusCodes.Status500InternalServerError
         };

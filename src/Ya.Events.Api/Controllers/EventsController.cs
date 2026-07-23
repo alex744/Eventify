@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using Ya.Events.Api.Extensions;
 using Ya.Events.Application.Abstractions.Services;
 using Ya.Events.Application.DTOs;
 using Ya.Events.Application.Mappers;
@@ -13,12 +12,10 @@ namespace Ya.Events.Api.Controllers;
 public class EventsController : ControllerBase
 {
     private readonly IEventService _eventService;
-    //private readonly IBookingService _bookingService;
 
-    public EventsController(IEventService eventService/*, IBookingService bookingService*/)
+    public EventsController(IEventService eventService)
     {
         _eventService = eventService;
-        //_bookingService = bookingService;
     }
 
     /// <summary>
@@ -129,31 +126,4 @@ public class EventsController : ControllerBase
         await _eventService.DeleteAsync(id, ct);
         return NoContent();
     }
-    /*
-    /// <summary>
-    /// Создание брони для события.
-    /// POST /events/{eventId}/book
-    /// </summary>
-    /// <param name="eventId">Идентификатор события.</param>
-    /// <param name="ct">Токен отмены.</param>
-    /// <returns>Бронь со статусом Pending; код 202 Accepted с Location в заголовке.</returns>
-    /// <response code="202">Бронь успешно создана и находится в ожидании подтверждения.</response>
-    /// <response code="400">Событие уже началось.</response>
-    /// <response code="401">Требуется аутентификация.</response>
-    /// <response code="404">Событие с указанным идентификатором не найдено.</response>
-    /// <response code="409">Нет доступных мест для бронирования.</response>
-    [Authorize]
-    [HttpPost("{eventId}/book")]
-    [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(BookingResponse))]
-    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
-    public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
-    {
-        var userId = User.GetUserId();
-        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
-        return AcceptedAtAction("GetBooking", "Bookings", new { id = booking.Id }, booking.ToResponse());
-    }*/
 }
