@@ -8,7 +8,7 @@ using Ya.Events.Domain.Exceptions;
 using Ya.Events.Infrastructure.Persistence;
 using Ya.Events.Infrastructure.Repositories;
 
-namespace Ya.Events.WebApi.Tests;
+namespace Ya.Events.Tests;
 
 public sealed class EventServiceTests : IDisposable
 {

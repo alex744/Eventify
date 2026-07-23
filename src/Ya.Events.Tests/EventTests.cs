@@ -1,6 +1,6 @@
 ﻿using Ya.Events.Domain.Entities;
 
-namespace Ya.Events.WebApi.Tests;
+namespace Ya.Events.Tests;
 
 public class EventTests
 {

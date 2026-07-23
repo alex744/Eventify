@@ -2,17 +2,17 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using System.ComponentModel.DataAnnotations;
-using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Application.Abstractions.Security;
-using Ya.Events.Application.Abstractions.Services;
-using Ya.Events.Application.DTOs.Auth;
-using Ya.Events.Application.Services;
-using Ya.Events.Domain.Exceptions;
-using Ya.Events.Domain.ValueObjects;
-using Ya.Events.Infrastructure.Persistence;
-using Ya.Events.Infrastructure.Repositories;
+using Ya.Users.Application.Abstractions.Persistence.Repositories;
+using Ya.Users.Application.Abstractions.Security;
+using Ya.Users.Application.Abstractions.Services;
+using Ya.Users.Application.DTOs;
+using Ya.Users.Application.Services;
+using Ya.Users.Domain.Exceptions;
+using Ya.Users.Domain.ValueObjects;
+using Ya.Users.Infrastructure.Persistence;
+using Ya.Users.Infrastructure.Repositories;
 
-namespace Ya.Events.WebApi.Tests;
+namespace Ya.Users.Tests;
 
 public sealed class UserServiceTests : IDisposable
 {
