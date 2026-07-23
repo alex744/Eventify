@@ -6,9 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Ya.Bookings.Application.Abstractions.Persistence.Repositories;
+using Ya.Bookings.Application.Abstractions.Services;
+using Ya.Bookings.Infrastructure.Options;
 using Ya.Bookings.Infrastructure.Persistence;
 using Ya.Bookings.Infrastructure.Repositories;
-using Ya.Bookings.Infrastructure.Security;
 using Ya.Bookings.Infrastructure.Services;
 
 namespace Ya.Bookings.Infrastructure;
@@ -55,12 +56,14 @@ public static class DependencyInjectionExtensions
 
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.Configure<JwtOptions>(configuration.GetSection("Jwt"));
+        services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<KafkaOptions>(configuration.GetSection(KafkaOptions.SectionName));
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IBookingRepository, BookingRepository>();
+        services.AddSingleton<IBookingEventPublisher, KafkaBookingEventPublisher>();
         services.AddHostedService<BookingProcessorService>();
 
         return services;

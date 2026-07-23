@@ -2,7 +2,9 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Ya.Bookings.Application.Abstractions.Persistence.Repositories;
+using Ya.Bookings.Application.Abstractions.Services;
 using Ya.Bookings.Domain.ValueObjects;
+using Ya.Shared.Contracts.Events;
 
 namespace Ya.Bookings.Infrastructure.Services;
 
@@ -65,9 +67,10 @@ public class BookingProcessorService : BackgroundService
             // 1. Имитация внешнего запроса (выполняется параллельно для разных броней)
             await Task.Delay(_processingDelay, stoppingToken);
 
-            // 2. Получаем репозитории в новом scope
+            // 2. Получаем сервисы в новом scope
             using var scope = _scopeFactory.CreateScope();
             var bookingRepository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+            var bookingEventPublisher = scope.ServiceProvider.GetRequiredService<IBookingEventPublisher>();
 
             // 3. Получаем бронь и проверяем её статус
             var booking = await bookingRepository.GetByIdAsync(bookingId, stoppingToken);
@@ -88,7 +91,19 @@ public class BookingProcessorService : BackgroundService
             // 5. Подтверждаем бронь
             booking.Confirm();
             await bookingRepository.SaveChangesAsync(stoppingToken);
-            _logger.LogInformation("Бронь '{Id}' подтверждена", booking.Id);
+
+            // 6. Только после успешного сохранения публикуем событие
+            var bookingConfirmed = new BookingConfirmed
+            {
+                BookingId = booking.Id,
+                EventId = booking.EventId,
+                UserId = booking.UserId,
+                NumberOfSeats = 1,
+                ConfirmedAt = booking.ProcessedAt ?? DateTime.UtcNow
+            };
+
+            await bookingEventPublisher.PublishAsync(bookingConfirmed, stoppingToken);
+            _logger.LogInformation("Бронь '{Id}' подтверждена и событие опубликовано.", booking.Id);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {

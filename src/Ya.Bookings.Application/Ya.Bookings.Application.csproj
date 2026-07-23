@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ya.Bookings.Domain\Ya.Bookings.Domain.csproj" />
+    <ProjectReference Include="..\Ya.Shared.Contracts\Ya.Shared.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

@@ -27,11 +27,6 @@ public class BookingRepository : IBookingRepository
         return entity;
     }
 
-    //public async Task<Event?> GetEventByIdAsync(Guid eventId, CancellationToken ct = default)
-    //{
-    //    return await _context.Events.FirstOrDefaultAsync(e => e.Id == eventId, ct);
-    //}
-
     public async Task<IReadOnlyList<Guid>> GetPendingBookingIdsAsync(CancellationToken ct = default)
     {
         return await _context.Bookings

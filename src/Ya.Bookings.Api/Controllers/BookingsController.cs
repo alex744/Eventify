@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Ya.Bookings.Api.Extensions;
 using Ya.Bookings.Application.Abstractions.Services;
 using Ya.Bookings.Application.DTOs;
 using Ya.Bookings.Application.Mappers;
-using Ya.Bookings.Api.Extensions;
 
 namespace Ya.Bookings.Api.Controllers;
 
@@ -40,6 +40,33 @@ public class BookingsController : ControllerBase
             });
 
         return booking.ToResponse();
+    }
+
+    /// <summary>
+    /// Cоздать бронь на событие
+    /// POST /bookings/{eventId}
+    /// </summary>
+    /// <param name="eventId">Идентификатор события.</param>
+    /// <param name="ct">Токен отмены.</param>
+    /// <returns>Бронь со статусом Pending; код 202 Accepted с Location в заголовке.</returns>
+    /// <response code="202">Бронь успешно создана и находится в ожидании подтверждения.</response>
+    /// <response code="400">Событие уже началось.</response>
+    /// <response code="401">Требуется аутентификация.</response>
+    /// <response code="404">Событие с указанным идентификатором не найдено.</response>
+    /// <response code="409">Нет доступных мест для бронирования.</response>
+    [Authorize]
+    [HttpPost("{eventId}")]
+    [ProducesResponseType(StatusCodes.Status202Accepted, Type = typeof(BookingResponse))]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status409Conflict, Type = typeof(ProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
+    public async Task<IActionResult> CreateBookingAsync(Guid eventId, CancellationToken ct = default)
+    {
+        var userId = User.GetUserId();
+        var booking = await _bookingService.CreateBookingAsync(eventId, userId, ct);
+        return AcceptedAtAction("GetBooking", new { id = booking.Id }, booking.ToResponse());
     }
 
     /// <summary>
