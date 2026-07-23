@@ -27,6 +27,7 @@ internal sealed class KafkaBookingEventPublisher : IBookingEventPublisher, IDisp
         var config = new ProducerConfig
         {
             BootstrapServers = kafkaOptions.BootstrapServers,
+            ClientId = kafkaOptions.GroupId,
             Acks = Acks.All
         };
 
