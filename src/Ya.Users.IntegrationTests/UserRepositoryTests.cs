@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Domain.Entities;
-using Ya.Events.Domain.ValueObjects;
-using Ya.Events.WebApi.IntegrationTests.Fixtures;
+using Ya.Users.Application.Abstractions.Persistence.Repositories;
+using Ya.Users.Domain.Entities;
+using Ya.Users.Domain.ValueObjects;
+using Ya.Users.IntegrationTests.Fixtures;
 
-namespace Ya.Events.WebApi.IntegrationTests;
+namespace Ya.Users.IntegrationTests;
 
 [Collection("PostgreSQL collection")]
 public sealed class UserRepositoryTests
@@ -396,27 +396,6 @@ public sealed class UserRepositoryTests
 
         // Act & Assert
         await Assert.ThrowsAsync<DbUpdateException>(() => _userRepository.CreateAsync(user2, ct));
-    }
-
-    /// <summary>
-    /// Проверяет, что пользователь сохраняет связь с бронированиями (если они существуют).
-    /// </summary>
-    [Fact]
-    [Trait("Category", "UserRepository")]
-    public async Task CreateAsync_User_CanBeRetrievedWithBookings()
-    {
-        // Arrange
-        await _fixture.ResetDatabaseAsync();
-        var ct = TestContext.Current.CancellationToken;
-        var user = User.Create("bookinguser", "hash", UserRole.User);
-
-        // Act
-        var created = await _userRepository.CreateAsync(user, ct);
-        var retrieved = await _userRepository.GetByIdAsync(created.Id, ct);
-
-        // Assert
-        Assert.NotNull(retrieved);
-        Assert.Empty(retrieved.Bookings); // Новый пользователь не имеет бронирований
     }
 
     #endregion

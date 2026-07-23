@@ -1,4 +1,4 @@
-namespace Ya.Events.WebApi.IntegrationTests.Fixtures;
+namespace Ya.Events.IntegrationTests.Fixtures;
 
 /// <summary>
 /// Определяет коллекцию тестов, которые будут использовать общую PostgreSQL фикстуру.

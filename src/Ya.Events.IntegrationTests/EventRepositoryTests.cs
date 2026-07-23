@@ -1,9 +1,9 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Ya.Events.Application.Abstractions.Persistence.Repositories;
 using Ya.Events.Domain.Entities;
-using Ya.Events.WebApi.IntegrationTests.Fixtures;
+using Ya.Events.IntegrationTests.Fixtures;
 
-namespace Ya.Events.WebApi.IntegrationTests;
+namespace Ya.Events.IntegrationTests;
 
 [Collection("PostgreSQL collection")]
 public sealed class EventRepositoryTests

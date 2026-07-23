@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
-using Ya.Events.Application.Abstractions.Persistence.Repositories;
-using Ya.Events.Infrastructure.Persistence;
-using Ya.Events.Infrastructure.Repositories;
+using Ya.Users.Application.Abstractions.Persistence.Repositories;
+using Ya.Users.Infrastructure.Persistence;
+using Ya.Users.Infrastructure.Repositories;
 
-namespace Ya.Events.WebApi.IntegrationTests.Fixtures;
+namespace Ya.Users.IntegrationTests.Fixtures;
 
 /// <summary>
 /// Общая фикстура для всех интеграционных тестов.
@@ -29,8 +29,6 @@ public class PostgreSqlFixture : IAsyncLifetime
 
         var services = new ServiceCollection();
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(_postgres.GetConnectionString()));
-        services.AddScoped<IBookingRepository, BookingRepository>();
-        services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
 
         _serviceProvider = services.BuildServiceProvider();
@@ -54,6 +52,6 @@ public class PostgreSqlFixture : IAsyncLifetime
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await context.Database.ExecuteSqlRawAsync(
-            "TRUNCATE TABLE users, events, bookings RESTART IDENTITY CASCADE");
+            "TRUNCATE TABLE users RESTART IDENTITY CASCADE");
     }
 }

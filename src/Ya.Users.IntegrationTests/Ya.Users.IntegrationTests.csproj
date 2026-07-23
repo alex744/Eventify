@@ -12,8 +12,10 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -22,8 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Ya.Bookings.Application\Ya.Bookings.Application.csproj" />
-    <ProjectReference Include="..\Ya.Bookings.Infrastructure\Ya.Bookings.Infrastructure.csproj" />
+    <ProjectReference Include="..\Ya.Users.Application\Ya.Users.Application.csproj" />
+    <ProjectReference Include="..\Ya.Users.Infrastructure\Ya.Users.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

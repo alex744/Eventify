@@ -5,6 +5,7 @@
     <Project Path="Ya.Bookings.Application/Ya.Bookings.Application.csproj" Id="956b4f32-2b29-4d7e-aa84-90da6a93b100" />
     <Project Path="Ya.Bookings.Domain/Ya.Bookings.Domain.csproj" Id="0d704497-caf6-4cf7-be26-e87c99937a44" />
     <Project Path="Ya.Bookings.Infrastructure/Ya.Bookings.Infrastructure.csproj" Id="ca5cb64c-3272-4d73-a875-f8081136605f" />
+    <Project Path="Ya.Bookings.IntegrationTests/Ya.Bookings.IntegrationTests.csproj" Id="77694c60-69d2-4176-be78-c9eb348772f8" />
     <Project Path="Ya.Bookings.Tests/Ya.Bookings.Tests.csproj" Id="b8ae1430-2ac9-4809-b54a-a3137194857e" />
   </Folder>
   <Folder Name="/Services/Events/">
@@ -12,6 +13,7 @@
     <Project Path="Ya.Events.Application/Ya.Events.Application.csproj" Id="3fcb2d49-0b07-42e5-88b1-12f4056245f7" />
     <Project Path="Ya.Events.Domain/Ya.Events.Domain.csproj" Id="cef79d17-5b6c-478a-8f5d-dad18630ca49" />
     <Project Path="Ya.Events.Infrastructure/Ya.Events.Infrastructure.csproj" Id="698ab7f0-1496-48d9-9090-865e4832bf4a" />
+    <Project Path="Ya.Events.IntegrationTests/Ya.Events.IntegrationTests.csproj" Id="1efd7014-862e-4872-ba5f-32b6727deef1" />
     <Project Path="Ya.Events.Tests/Ya.Events.Tests.csproj" Id="dd4e9c99-7ec7-4837-a420-7cf34b7fa982" />
   </Folder>
   <Folder Name="/Services/Users/">
@@ -19,11 +21,11 @@
     <Project Path="Ya.Users.Application/Ya.Users.Application.csproj" Id="72c5a470-1a77-487c-bf54-0e86bedc549c" />
     <Project Path="Ya.Users.Domain/Ya.Users.Domain.csproj" Id="8a335b0e-d518-4cad-86ae-ad6f5fc59a19" />
     <Project Path="Ya.Users.Infrastructure/Ya.Users.Infrastructure.csproj" Id="34b898fa-15e0-40a6-b61a-5f9c09b5f436" />
+    <Project Path="Ya.Users.IntegrationTests/Ya.Users.IntegrationTests.csproj" Id="eb0e494c-c161-4304-b56d-e8ed7f628513" />
     <Project Path="Ya.Users.Tests/Ya.Users.Tests.csproj" Id="4887f048-aedf-4265-96ef-95536920e489" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Ya.Shared.Contracts/Ya.Shared.Contracts.csproj" Id="e6bdc34f-1a1f-49d3-8f11-3dde05b8f001" />
   </Folder>
   <Project Path="Ya.Events.WebApi.E2ETests/Ya.Events.WebApi.E2ETests.csproj" Id="c1fd4459-f708-44d0-aa79-d84928572d01" />
-  <Project Path="Ya.Events.WebApi.IntegrationTests/Ya.Events.WebApi.IntegrationTests.csproj" Id="bae72fc6-f7c0-4079-88b5-325b5618b7ce" />
 </Solution>
