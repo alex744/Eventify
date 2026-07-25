@@ -1,4 +1,4 @@
-﻿using Ya.Events.Application.DTOs.Events;
+﻿using Ya.Events.Application.DTOs;
 using Ya.Events.Domain.Entities;
 
 namespace Ya.Events.Application.Mappers;

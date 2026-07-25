@@ -41,11 +41,6 @@ public sealed class Event
     /// </summary>
     public int AvailableSeats { get; private set; }
 
-    /// <summary>
-    /// Список бронирований, связанных с событием.
-    /// </summary>
-    public ICollection<Booking> Bookings { get; private set; } = [];
-
     private Event() { Title = null!; }
 
     private Event(

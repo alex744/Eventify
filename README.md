@@ -1,21 +1,71 @@
-# Eventify
+# О проекте
 
-**API для управления событиями (CRUD операции) и бронированиями.**
+**Микросервисная система для управления пользователями, событиями и бронированиями.**
 
-## Требования
+## Состав системы
+
+Eventify состоит из трёх независимых ASP.NET Core API. Каждый сервис владеет только своей логической базой данных PostgreSQL и не обращается к базам других сервисов.
+
+| Сервис | Назначение | База данных | Порт хоста |
+|---|---|---|---|
+| `Ya.Users.Api` | Регистрация, вход и выпуск JWT | `users_db` | `5000` |
+| `Ya.Events.Api` | Управление событиями и доступными местами | `events_db` | `5002` |
+| `Ya.Bookings.Api` | Создание, отмена и фоновая обработка бронирований | `bookings_db` | `5004` |
+
+По умолчанию Docker Compose запускает один экземпляр PostgreSQL 16 на `5432`; в нём создаются три изолированные базы из таблицы. Для асинхронного обмена сервисами используется Kafka: `9092` доступен с хоста, а `29092` — внутри Docker-сети. Также запускается pgAdmin на `5050`.
+
+Порты, имена баз и реквизиты задаются в `.env`; исходный шаблон — [`.env.example`](.env.example). Каждый API внутри контейнера слушает порт `8080`.
+
+## Поток `BookingConfirmed`
+
+1. Клиент создаёт бронь через `POST /bookings/{eventId}` в `Ya.Bookings.Api`. Бронь сохраняется в `bookings_db` со статусом `Pending`.
+2. `BookingProcessorService` в сервисе бронирований периодически обрабатывает ожидающие записи, переводит бронь в `Confirmed` и сохраняет изменение.
+3. Только после успешного сохранения `Ya.Bookings.Api` публикует контракт `BookingConfirmed` в Kafka-топик `booking-confirmed`. Ключ сообщения — `EventId`; контракт содержит `BookingId`, `EventId`, `UserId`, `NumberOfSeats` и `ConfirmedAt`.
+4. `Ya.Events.Api` подписан на этот топик в consumer group `booking-processing`. Получив сообщение, он находит событие в `events_db`, резервирует одно место через `TryReserveSeats()` и сохраняет изменения.
+5. После успешной обработки подписчик фиксирует offset. Некорректное сообщение, отсутствующее событие или отсутствие свободных мест записываются в журнал и также подтверждаются без повторной обработки.
+
+Таким образом, состояние брони и количество доступных мест согласуются асинхронно через Kafka. `Ya.Users.Api` в этот поток не подписывается.
+
+## Запуск через Docker Compose
+
+### Требования
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/ru-ru/download/dotnet/10.0)
 - [PostgreSQL](https://www.postgresql.org/download/) (версия 16 или выше)
 - [Docker](https://www.docker.com/)
 
+1. Создайте локальный файл окружения:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   В Windows PowerShell используйте `Copy-Item .env.example .env`. Укажите в `.env` надёжные значения `DB_PASSWORD` и `JWT_SECRET`.
+
+2. Из корня репозитория соберите и запустите инфраструктуру и все API:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+   При старте каждый сервис применяет свои миграции EF Core автоматически.
+
+3. Swagger будет доступен по адресам:
+
+   - Users API: `http://localhost:5000/swagger`
+   - Events API: `http://localhost:5002/swagger`
+   - Bookings API: `http://localhost:5004/swagger`
+
+   Просмотреть логи можно командой `docker compose logs -f`, остановить окружение — `docker compose down`. Команда `docker compose down -v` дополнительно удаляет данные PostgreSQL, Kafka и pgAdmin.
+
 ## Структура проекта
 
-Проект построен на основе **многослойной архитектуры (Clean/Layered Architecture)**, что обеспечивает разделение ответственности и облегчает тестирование.
+Проект построен как микросервисная система. Каждый из сервисов `Ya.Users`, `Ya.Events` и `Ya.Bookings` использует **многослойную архитектуру (Clean/Layered Architecture)**; общие интеграционные контракты находятся в `Ya.Shared.Contracts`.
 
 ### Архитектурные слои
 
-- **WebApi** — внешний уровень, обрабатывающий HTTP-запросы и отвечающий клиенту (включает контроллеры, модели представлений, модули Swagger).
-- **Application** — уровень бизнес-логики, обрабатывающий запросы от WebApi и взаимодействующий с уровнем инфраструктуры (включает сервисы, интерфейсы репозиториев, модели запросов/ответов).
+- **Presentation** — внешний уровень, обрабатывающий HTTP-запросы и отвечающий клиенту (включает контроллеры, модели представлений, модули Swagger).
+- **Application** — уровень бизнес-логики, обрабатывающий запросы от **Presentation** и взаимодействующий с уровнем инфраструктуры (включает сервисы, интерфейсы репозиториев, модели запросов/ответов).
 - **Infrastructure** — уровень, отвечающий за взаимодействие с внешними системами (например, БД, файловая система), реализация интерфейсов из уровня Application (включает контекст базы данных, реализации репозиториев, миграции EF Core).
 - **Domain** — уровень, содержащий доменные модели и бизнес-правила, не зависящие от деталей реализации (включает сущности, перечисления, доменные исключения).
 
@@ -25,15 +75,13 @@
 - `Infrastructure` зависит от `Application` и `Domain`
 - `Domain` не зависит ни от чего
 
----
-
 ## Описание каждого слоя
 
-#### 1. **Presentation Layer** (`Ya.Events.WebApi`)
+#### 1. **Presentation Layer** (`Ya.Users.Api`, `Ya.Events.Api`, `Ya.Bookings.Api`)
 **Назначение:** Слой взаимодействия с клиентом. Обработка HTTP-запросов и ответов.
 
 **Содержит:**
-- `Controllers/` — REST API контроллеры (`EventsController`, `BookingsController`, `AuthController`)
+- `Controllers/` — REST API контроллеры: `AuthController` в Users, `EventsController` в Events и `BookingsController` в Bookings
   - Валидация входных данных
   - Обработка HTTP-методов (GET, POST, PUT, DELETE)
   - Возврат стандартизованных ответов с правильными статус-кодами
@@ -44,9 +92,7 @@
 
 **Ответственность:** Только за приём/отправку данных, валидацию и маршрутизацию.
 
----
-
-#### 2. **Application Layer** (`Ya.Events.Application`)
+#### 2. **Application Layer** (`Ya.Users.Application`, `Ya.Events.Application`, `Ya.Bookings.Application`)
 **Назначение:** Слой бизнес-логики и оркестрации процессов. Реализует основные сценарии использования (use cases).
 
 **Содержит:**
@@ -65,13 +111,11 @@
 
 **Ответственность:** Бизнес-логика, оркестрация работы с данными, обработка доменных событий.
 
----
-
-#### 3. **Domain Layer** (`Ya.Events.Domain`)
+#### 3. **Domain Layer** (`Ya.Users.Domain`, `Ya.Events.Domain`, `Ya.Bookings.Domain`)
 **Назначение:** Ядро приложения. Содержит доменные модели и бизнес-правила, не зависящие от деталей реализации.
 
 **Содержит:**
-- `Entities/` — доменные сущности (модели данных)
+- `Entities/` — доменные сущности, принадлежащие соответствующему сервису
   - `Event` — событие с валидацией
   - `Booking` — бронирование с управлением статусом
   - `User` — пользователь с ролями
@@ -87,9 +131,7 @@
 
 **Ответственность:** Определение сущностей и их правил, не зависит от инфраструктуры.
 
----
-
-#### 4. **Infrastructure Layer** (`Ya.Events.Infrastructure`)
+#### 4. **Infrastructure Layer** (`Ya.Users.Infrastructure`, `Ya.Events.Infrastructure`, `Ya.Bookings.Infrastructure`)
 **Назначение:** Реализация механизмов доступа к данным, работа с внешними сервисами.
 
 **Содержит:**
@@ -106,16 +148,16 @@
   - `JwtOptions` — настройки для JWT
   - `PasswordHasher` — хеширование паролей
 - `Services` — реализация фоновых сервисов
-  - `BookingProcessingService` — фоновая обработка бронирований  
+  - `BookingProcessorService` — фоновая обработка бронирований в Bookings
+  - `KafkaBookingEventPublisher` — публикация `BookingConfirmed` в Bookings
+  - `BookingConsumerWorker` — подписчик `BookingConfirmed` в Events
 - `DependencyInjection.cs` — регистрация сервисов инфраструктуры в DI контейнере
 
 **Ответственность:** Работа с базой данных, реализация интерфейсов репозиториев, миграции, работа с JWT.
 
----
-
 #### 5. **Test Projects**
 
-##### 5.1 **Unit Tests** (`Ya.Events.WebApi.Tests`)
+##### 5.1 **Unit Tests** (`Ya.Users.Tests`, `Ya.Events.Tests`, `Ya.Bookings.Tests`)
 **Назначение:** Тестирование отдельных компонентов в изоляции.
 
 **Используемые технологии:**
@@ -134,7 +176,7 @@
 - Каждый тест изолирован от других
 - Проверяют бизнес-логику без БД
 
-##### 5.2 **Integration Tests** (`Ya.Events.WebApi.IntegrationTests`)
+##### 5.2 **Integration Tests** (`Ya.Users.IntegrationTests`, `Ya.Events.IntegrationTests`, `Ya.Bookings.IntegrationTests`)
 **Назначение:** Тестирование взаимодействия компонентов с реальной БД.
 
 **Используемые технологии:**
@@ -153,7 +195,7 @@
 - Проверяют взаимодействие с БД
 - Медленнее unit-тестов, но находят проблемы с БД
 
-##### 5.3 **E2E Tests** (`Ya.Events.WebApi.E2ETests`)
+##### 5.3 **E2E Tests** (`Ya.E2ETests`)
 **Назначение:** Тестирование полного цикла от HTTP-запроса до ответа.
 
 **Используемые технологии:**
@@ -169,8 +211,6 @@
 - Проверяют интеграцию всех слоёв
 - Самые медленные, но наиболее близки к реальному использованию
 
----
-
 ### Поток данных при запросе
 
 1. **HTTP запрос** поступает в `Controller` (`Presentation Layer`)
@@ -182,11 +222,11 @@
 7. **БД** возвращает данные
 8. Данные проходят обратно через слои: Repository → Service → DTO → HTTP Response
 
----
-
 ## Настройка строки подключения к PostgreSQL
 
-1. Создайте файл `appsettings.json` (если его нет) в проекте `Ya.Events.WebApi` или добавьте секцию в существующий файл:
+Каждый сервис использует собственную базу: `users_db`, `events_db` или `bookings_db`. При запуске через Docker Compose строки подключения передаются автоматически из `.env`.
+
+Для локального запуска без Docker настройте `DefaultConnection` в `appsettings.Development.json` соответствующего API. Ниже сохранён исторический шаблон строки подключения: замените `eventify` в нём на имя базы нужного сервиса.
 
 ```json
 {
@@ -196,14 +236,14 @@
 }
 ```
 
-2. Замените значения на актуальные:
+Замените значения на актуальные:
    - `Host` — адрес сервера PostgreSQL (по умолчанию `localhost`)
    - `Port` — порт PostgreSQL (по умолчанию `5432`)
-   - `Database` — имя базы данных (например, `eventify`)
+   - `Database` — `users_db`, `events_db` или `bookings_db`
    - `Username` — имя пользователя PostgreSQL (по умолчанию `postgres`)
    - `Password` — пароль пользователя PostgreSQL
 
-3. Для среды разработки можно использовать файл `appsettings.Development.json`:
+Настройки каждого API уже разделены по проектам: `Ya.Users.Api`, `Ya.Events.Api` и `Ya.Bookings.Api`. Сохранённый ниже пример для development-среды также требует заменить `eventify_dev` на `users_db`, `events_db` или `bookings_db`.
 
 ```json
 {
@@ -212,8 +252,6 @@
   }
 }
 ```
-
----
 
 ## Управление схемой БД через миграции EF Core
 
@@ -229,24 +267,21 @@ dotnet tool install --global dotnet-ef
 
 ### Применение миграций
 
-Для применения миграций к базе данных PostgreSQL:
+Контейнеры применяют миграции при запуске. Для ручного применения выполните из корня репозитория команду нужного сервиса:
 
 ```bash
-cd src/Ya.Events.Infrastructure
-
-# Примените все Pending миграции
-dotnet ef database update
+dotnet ef database update --project src/Ya.Users.Infrastructure --startup-project src/Ya.Users.Api
+dotnet ef database update --project src/Ya.Events.Infrastructure --startup-project src/Ya.Events.Api
+dotnet ef database update --project src/Ya.Bookings.Infrastructure --startup-project src/Ya.Bookings.Api
 ```
 
 ### Создание новых миграций
 
-При изменении моделей (Event, Booking, User) создайте новую миграцию:
+При изменении модели создайте новую миграцию в инфраструктурном проекте соответствующего сервиса:
 
 ```bash
-cd src/Ya.Events.Infrastructure
-
-# Создайте миграцию с описательным именем
-dotnet ef migrations add AddFieldNameValidation
+# Пример для Events API
+dotnet ef migrations add AddFieldNameValidation --project src/Ya.Events.Infrastructure --startup-project src/Ya.Events.Api
 ```
 
 ### Откат миграций
@@ -254,8 +289,7 @@ dotnet ef migrations add AddFieldNameValidation
 Для отката на одну миграцию назад:
 
 ```bash
-cd src/Ya.Events.Infrastructure
-dotnet ef database update --target PreviousMigrationName
+dotnet ef database update PreviousMigrationName --project src/Ya.Events.Infrastructure --startup-project src/Ya.Events.Api
 ```
 
 Для отката до начала (удаление всех таблиц):
@@ -263,8 +297,6 @@ dotnet ef database update --target PreviousMigrationName
 ```bash
 dotnet ef database drop --force
 ```
-
----
 
 ## Использование InMemory-провайдера в юнит-тестах
 
@@ -285,8 +317,6 @@ using var context = new AppDbContext(options);
 ```
 
 Каждый тест создаёт отдельную базу данных в памяти, которая удаляется после завершения теста.
-
----
 
 ## Интеграционные тесты
 
@@ -346,8 +376,6 @@ Testcontainers автоматически:
 dotnet add package Testcontainers.PostgreSql
 ```
 
----
-
 ## Аутентификация и авторизация
 
 API использует JWT-аутентификацию и ролевую авторизацию ASP.NET Core. JWT передаётся в заголовке каждого защищённого запроса:
@@ -376,15 +404,13 @@ Authorization: Bearer <jwt-token>
 | POST | `/events` | Только роль `Admin` |
 | PUT | `/events/{id}` | Только роль `Admin` |
 | DELETE | `/events/{id}` | Только роль `Admin` |
-| POST | `/events/{id}/book` | Любой авторизованный пользователь |
+| POST | `/bookings/{eventId}` | Любой авторизованный пользователь |
 | GET | `/bookings/{id}` | Любой авторизованный пользователь, имеющий доступ к бронированию |
 | DELETE | `/bookings/{id}` | Любой авторизованный пользователь, имеющий доступ к бронированию |
 
 Административные эндпоинты защищены атрибутом `[Authorize(Roles = "Admin")]`. Эндпоинты бронирований требуют наличия действительного JWT-токена.
 
 > Для удобства тестирования при регистрации разрешена передача роли `Admin`. В production-среде пользователи не должны иметь возможности самостоятельно назначать себе административную роль. Назначение роли `Admin` следует вынести в отдельный защищённый административный сценарий.
-
----
 
 ## Настройка JWT
 
@@ -395,8 +421,8 @@ Authorization: Bearer <jwt-token>
 ```json
 {
   "Jwt": {
-    "Issuer": "Ya.Events.Api",
-    "Audience": "Ya.Events.Client",
+    "Issuer": "users-api",
+    "Audience": "events-api, bookings-api",
     "LifetimeMinutes": 60
   }
 }
@@ -412,18 +438,18 @@ Authorization: Bearer <jwt-token>
 
 ### Настройка секрета через User Secrets
 
-Для среды разработки секрет JWT хранится с помощью .NET User Secrets. Выполните команды из корневой директории репозитория:
+Для локальной разработки секрет JWT должен быть одинаковым во всех трёх API. Выполните команды из корневой директории репозитория для каждого API:
 
 ```bash
-dotnet user-secrets init --project src/Ya.Events.WebApi
-dotnet user-secrets set "Jwt:Secret" "replace-with-a-long-random-secret-key" --project src/Ya.Events.WebApi
+dotnet user-secrets init --project src/Ya.Users.Api
+dotnet user-secrets set "Jwt:Secret" "replace-with-a-long-random-secret-key" --project src/Ya.Users.Api
 ```
 
-Если текущей директорией уже является `src`, используйте:
+Повторите установку этого же значения в `src/Ya.Events.Api` и `src/Ya.Bookings.Api`:
 
 ```bash
-dotnet user-secrets init --project Ya.Events.WebApi
-dotnet user-secrets set "Jwt:Secret" "replace-with-a-long-random-secret-key" --project Ya.Events.WebApi
+dotnet user-secrets set "Jwt:Secret" "replace-with-a-long-random-secret-key" --project src/Ya.Events.Api
+dotnet user-secrets set "Jwt:Secret" "replace-with-a-long-random-secret-key" --project src/Ya.Bookings.Api
 ```
 
 Для генерации случайного секрета можно воспользоваться OpenSSL:
@@ -437,7 +463,7 @@ openssl rand -base64 48
 Проверить сохранённые параметры можно командой:
 
 ```bash
-dotnet user-secrets list --project src/Ya.Events.WebApi
+dotnet user-secrets list --project src/Ya.Users.Api
 ```
 
 > User Secrets предназначены только для локальной разработки и не шифруются. В production-среде используйте безопасное хранилище секретов, например Azure Key Vault, AWS Secrets Manager, HashiCorp Vault или секреты платформы развёртывания. Секрет должен быть длинным, случайным, уникальным для каждой среды и не должен попадать в Git, логи или Docker-образ.
@@ -447,8 +473,6 @@ dotnet user-secrets list --project src/Ya.Events.WebApi
 ```bash
 export Jwt__Secret="replace-with-a-production-secret"
 ```
-
----
 
 ## Получение JWT-токена через Swagger
 
@@ -511,31 +535,33 @@ Authorization: Bearer <jwt-token>
 
 После истечения времени жизни токена необходимо снова выполнить `POST /auth/login` и авторизоваться с новым токеном.
 
----
+## Локальный запуск без Docker Compose
 
-## Запуск проекта
+### Требования
+
+- [.NET 10 SDK](https://dotnet.microsoft.com/ru-ru/download/dotnet/10.0)
+- [PostgreSQL](https://www.postgresql.org/download/) (версия 16 или выше)
+- [Docker](https://www.docker.com/)
+- [Kafka](https://kafka.apache.org/downloads)
 
 1. Клонируйте репозиторий:
    ```bash
    git clone https://github.com/alex744/Eventify.git
-   cd Eventify/src
+   cd Eventify
    ```
 
-2. Убедитесь, что Docker запущен (необходим для интеграционных тестов).
+2. Запустите PostgreSQL с базами `users_db`, `events_db`, `bookings_db` и Kafka на `localhost:9092`; Docker требуется также для интеграционных тестов.
 
-3. Настройте секреты JWT через User Secrets:
+3. Настройте одинаковый секрет JWT для трёх API через User Secrets:
    ```bash
-   dotnet user-secrets init --project Ya.Events.WebApi
-   dotnet user-secrets set "Jwt:Secret" "your-long-random-secret-key" --project Ya.Events.WebApi
+   dotnet user-secrets set "Jwt:Secret" "your-long-random-secret-key" --project src/Ya.Users.Api
+   dotnet user-secrets set "Jwt:Secret" "your-long-random-secret-key" --project src/Ya.Events.Api
+   dotnet user-secrets set "Jwt:Secret" "your-long-random-secret-key" --project src/Ya.Bookings.Api
    ```
 
 4. Убедитесь, что строка подключения настроена (см. раздел **«Настройка строки подключения к PostgreSQL»**).
 
-5. Примените существующие миграции к базе данных:
-   ```bash
-   cd Ya.Events.Infrastructure
-   dotnet ef database update
-   ```
+5. Примените миграции командами из раздела **«Управление схемой БД через миграции EF Core»**.
 
 6. Восстановите зависимости:
    ```bash
@@ -547,9 +573,11 @@ Authorization: Bearer <jwt-token>
    dotnet build
    ```
 
-8. Запустите веб‑приложение:
+8. Запустите три API в отдельных терминалах:
    ```bash
-   dotnet run --project Ya.Events.WebApi
+   dotnet run --project src/Ya.Users.Api
+   dotnet run --project src/Ya.Events.Api
+   dotnet run --project src/Ya.Bookings.Api
    ```
 
 9. При необходимости запустите тесты:
@@ -557,14 +585,12 @@ Authorization: Bearer <jwt-token>
    dotnet test
    ```
 
-10. Приложение будет доступно по адресам:
+10. Сервисы будут доступны по адресам:
     - `http://localhost:5000`
-    - `https://localhost:5001`
+    - `http://localhost:5002`
+    - `http://localhost:5004`
 
-11. Документация Swagger:
-    - `http://localhost:5000/swagger`
-
----
+11. Swagger доступен по соответствующему адресу с суффиксом `/swagger`.
 
 ## Краткая документация API
 
@@ -591,21 +617,21 @@ Authorization: Bearer <jwt-token>
 - `startAt` — дата начала события.
 - `endAt` — дата окончания события.
 - `totalSeats` – общее количество мест на событии (обязательное, положительное целое).
-- `availableSeats` – количество ещё доступных для бронирования мест. При создании события равно `totalSeats`. Уменьшается на 1 при каждой успешно созданной брони, увеличивается на 1 при возврате места (отклонении брони).
+- `availableSeats` – количество ещё доступных для бронирования мест. При создании события равно `totalSeats` и уменьшается при обработке `BookingConfirmed` в Events API.
 
 **Валидация:**
 - `title` обязательно.
 - `endAt` позже `startAt`.
 - `totalSeats` ≥ 1.
 
-### Эндпоинты аутентификации
+### Эндпоинты Users API (`http://localhost:5000`)
 
 | Метод | Путь | Описание | Доступ | Основные ответы |
 |---|---|---|---|---|
 | POST | `/auth/register` | Зарегистрировать пользователя | Без токена | 204: пользователь зарегистрирован, 400: некорректные данные |
 | POST | `/auth/login` | Проверить учётные данные и получить JWT-токен | Без токена | 200: JWT-токен, 404: неверные учётные данные |
 
-### Эндпоинты событий и бронирований
+### Эндпоинты Events API (`http://localhost:5002`)
 
 | Метод | Путь | Описание | Доступ | Основные ответы |
 |---|---|---|---|---|
@@ -614,7 +640,12 @@ Authorization: Bearer <jwt-token>
 | POST | `/events` | Создать событие | Только `Admin` | 201: событие создано, 400: некорректные данные, 401/403: нет доступа |
 | PUT | `/events/{id}` | Полностью обновить событие | Только `Admin` | 200: событие обновлено, 400: некорректные данные, 401/403: нет доступа, 404: событие не найдено |
 | DELETE | `/events/{id}` | Удалить событие | Только `Admin` | 204: событие удалено, 401/403: нет доступа, 404: событие не найдено |
-| POST | `/events/{id}/book` | Забронировать место на событии | Требуется JWT | 202: бронирование создано, 400: событие прошло, 401: требуется вход, 404: событие не найдено, 409: нет мест или превышен лимит |
+
+### Эндпоинты Bookings API (`http://localhost:5004`)
+
+| Метод | Путь | Описание | Доступ | Основные ответы |
+|---|---|---|---|---|
+| POST | `/bookings/{eventId}` | Создать бронь со статусом `Pending` | Требуется JWT | 202: бронирование создано, 401: требуется вход, 409: превышен лимит активных броней |
 | GET | `/bookings/{id}` | Получить бронирование | Требуется JWT | 200: бронирование, 401: требуется вход, 404: бронирование не найдено или отсутствует доступ |
 | DELETE | `/bookings/{id}` | Отменить бронирование | Требуется JWT | 204: бронирование отменено, 401/403: нет доступа, 404: бронирование не найдено |
 
@@ -622,8 +653,6 @@ Authorization: Bearer <jwt-token>
 
 - `401 Unauthorized` — JWT-токен отсутствует, недействителен или истёк.
 - `403 Forbidden` — пользователь аутентифицирован, но не имеет необходимой роли либо пытается получить доступ к чужому ресурсу.
-
----
 
 ### Фильтрация и пагинация для GET /events
 
@@ -673,8 +702,6 @@ Authorization: Bearer <jwt-token>
 }
 ```
 
----
-
 ## Бронирование событий
 
 ### Модель Booking
@@ -709,22 +736,20 @@ Authorization: Bearer <jwt-token>
 
 ### Фоновая обработка бронирований
 
-- После создания бронирования (статус `Pending`) запускается фоновый сервис, который через заданный интервал (3 секунды) подтверждает бронирование, меняя его статус на `Confirmed`. Если событие было удалено до подтверждения, бронь автоматически отклоняется.
-- Все изменения статусов логируются и доступны через `GET /bookings/{id}`.
+- После создания бронирования (статус `Pending`) `BookingProcessorService` опрашивает ожидающие записи каждые 5 секунд. Перед подтверждением каждой записи выполняется двухсекундная имитация внешней обработки.
+- Сервис переводит бронь в `Confirmed`, сохраняет её и публикует `BookingConfirmed`. Изменение количества мест выполняет Events API после получения этого сообщения; подробный поток приведён в разделе **«Поток `BookingConfirmed`»**.
+- При ошибке обработки бронь отклоняется. Все изменения статусов логируются и доступны через `GET /bookings/{id}`.
 
-### Примитивы синхронизации
+### Синхронизация
 
-Для предотвращения овербукинга (превышения доступных мест при параллельных запросах) в `BookingService` используется `SemaphoreSlim` (асинхронный семафор с начальным и максимальным счётчиком, равным 1):
-- Критическая секция, защищённая семафором, включает атомарную операцию «проверка свободных мест + резервирование» (`TryReserveSeats()`). Только один поток может одновременно выполнять эту операцию для конкретного события.
-- Благодаря этому при 5 свободных местах и 20 одновременных запросах ровно 5 получат успешное бронирование, а 15 – ответ `409 Conflict` с исключением `NoAvailableSeatsException`.
-- Семафор не блокирует потоки, а использует асинхронное ожидание (`WaitAsync`), что важно для масштабируемости веб-приложения.
+`BookingService` использует `SemaphoreSlim` для последовательного создания и отмены бронирований в одном экземпляре Bookings API, в частности при проверке лимита активных броней пользователя. Управление доступными местами не выполняется синхронно в этом сервисе: это ответственность Events API после доставки `BookingConfirmed`.
 
 ### Пример сценария бронирования
 
 1. Пользователь регистрируется через `POST /auth/register`.
 2. Пользователь выполняет вход через `POST /auth/login` и получает JWT-токен.
 3. Пользователь находит событие через `GET /events`.
-4. Пользователь отправляет `POST /events/{eventId}/book` с JWT-токеном.
+4. Пользователь отправляет `POST http://localhost:5004/bookings/{eventId}` с JWT-токеном.
 5. API извлекает идентификатор пользователя из claims токена.
 6. API возвращает `202 Accepted` и бронирование со статусом `Pending`.
 7. Фоновый сервис обрабатывает бронирование.
@@ -733,21 +758,15 @@ Authorization: Bearer <jwt-token>
 
 Бронирование связано с пользователем, идентификатор который содержится в JWT. Попытка получить или удалить бронирование другого пользователя возвращает `403 Forbidden`.
 
-Создать бронирование нельзя в следующих случаях:
-- событие уже прошло — `400 Bad Request`;
-- у события нет свободных мест — `409 Conflict`;
-- пользователь достиг установленного лимита бронирований — `409 Conflict`;
-- JWT-токен отсутствует или недействителен — `401 Unauthorized`.
+Создание брони требует действительного JWT-токена и невозможно, если пользователь достиг лимита в десять активных броней. Проверка доступных мест выполняется асинхронно в Events API при обработке `BookingConfirmed`.
 
-### Пример сценария с овербукингом
+### Сценарий при отсутствии доступных мест
 
 1. Создано событие с `totalSeats = 5`.
-2. Десять пользователей одновременно отправляют `POST /events/{eventId}/book`.
-3. API возвращает первым пяти запросам статус `202 Accepted` и создаёт брони со статусом `Pending`.
-4. Остальные пять запросов получают `409 Conflict` с сообщением `"No available seats for this event"`.
-5. Фоновый сервис параллельно подтверждает пять созданных броней, статус каждой меняется на `Confirmed`.
-
----
+2. Пользователи создают брони через Bookings API; новые записи получают статус `Pending`.
+3. После подтверждения каждая бронь публикует `BookingConfirmed`.
+4. Events API резервирует места для первых пяти обработанных сообщений.
+5. Последующие сообщения фиксируются с предупреждением о нехватке мест, а состояние таких броней уже хранится в Bookings API. Это следствие асинхронной согласованности между сервисами.
 
 ## Формат ответов об ошибках
 
@@ -766,27 +785,24 @@ Authorization: Bearer <jwt-token>
 
 | Статус | Описание |
 |---|---|
-| `400 Bad Request` | Ошибка валидации, некорректные параметры или попытка забронировать событие, которое уже прошло |
+| `400 Bad Request` | Ошибка валидации или некорректные параметры |
 | `401 Unauthorized` | JWT-токен отсутствует, недействителен или истёк |
 | `403 Forbidden` | Пользователь не имеет необходимой роли или пытается получить доступ к чужому ресурсу |
 | `404 Not Found` | Событие, бронирование или другой ресурс не найден |
-| `409 Conflict` | Нет свободных мест или пользователь достиг лимита бронирований |
+| `409 Conflict` | Пользователь достиг лимита активных бронирований |
 
 Новые доменные исключения обрабатываются глобальным обработчиком ошибок:
 
 - отсутствие прав доступа преобразуется в `403 Forbidden`;
-- попытка забронировать событие в прошлом преобразуется в `400 Bad Request`;
 - превышение лимита бронирований преобразуется в `409 Conflict`.
-
----
 
 ## Технологии
 
+- .NET 10
 - ASP.NET Core Web API
-- Swagger/OpenAPI (Swashbuckle)
-- JWT-аутентификация и ролевая авторизация
-- Фоновые службы (IHostedService / BackgroundService)
-- Entity Framework Core (PostgreSQL + InMemory для юнит-тестов)
-- Миграции EF Core (для управления схемой БД)
-- Testcontainers.PostgreSql (для интеграционных тестов)
-- User Secrets (для хранения JWT-секрета в среде разработки)
+- Entity Framework Core 10
+- PostgreSQL
+- Confluent.Kafka
+- xUnit 3
+- Moq
+- Testcontainers for .NET
