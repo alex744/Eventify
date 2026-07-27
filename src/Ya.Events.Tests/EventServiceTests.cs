@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
+using Ya.Events.Application.Abstractions.Caching;
 using Ya.Events.Application.Abstractions.Persistence.Repositories;
 using Ya.Events.Application.Abstractions.Services;
 using Ya.Events.Application.Services;
@@ -23,6 +25,14 @@ public sealed class EventServiceTests : IDisposable
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IEventService, EventService>();
+
+        var cacheMock = new Mock<ICache>();
+        services.AddSingleton(cacheMock.Object);
+
+        var cacheTtlMock = new Mock<ICacheTtlProvider>();
+        cacheTtlMock.SetupGet(t => t.EventByIdTtl).Returns(TimeSpan.FromMinutes(5));
+        cacheTtlMock.SetupGet(t => t.TopEventsTtl).Returns(TimeSpan.FromMinutes(1));
+        services.AddSingleton(cacheTtlMock.Object);
 
         _serviceProvider = services.BuildServiceProvider();
         _scope = _serviceProvider.CreateScope();
