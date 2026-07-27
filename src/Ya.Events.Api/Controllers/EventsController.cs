@@ -76,6 +76,20 @@ public class EventsController : ControllerBase
     }
 
     /// <summary>
+    /// Топ-10 самых популярных событий
+    /// GET /events/top
+    /// </summary>    
+    [HttpGet("top")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<EventResponse>))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<IReadOnlyList<EventResponse>>> GetTopEventsAsync(CancellationToken ct = default)
+    {
+        var topEvents = await _eventService.GetTopEventsAsync(ct);
+        var response = topEvents.Select(e => e.ToResponse()).ToList();
+        return response;
+    }
+
+    /// <summary>
     /// Создать событие
     /// POST /events
     /// </summary>    

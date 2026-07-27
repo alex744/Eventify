@@ -60,6 +60,15 @@ public class EventRepository : IEventRepository
             .FirstOrDefaultAsync(e => e.Id == id, ct);
     }
 
+    public async Task<IReadOnlyList<Event>> GetTop10Async(CancellationToken ct = default)
+    {
+        return await _context.Events
+            .AsNoTracking()
+            .OrderByDescending(e => (e.TotalSeats - e.AvailableSeats) / e.TotalSeats)
+            .Take(10)
+            .ToListAsync(ct);
+    }
+
     public async Task<Event> CreateAsync(Event entity, CancellationToken ct = default)
     {
         await _context.Events.AddAsync(entity, ct);
