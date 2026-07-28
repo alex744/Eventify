@@ -1,6 +1,7 @@
 ﻿using Ya.Events.Application.Abstractions.Caching;
 using Ya.Events.Application.Abstractions.Persistence.Repositories;
 using Ya.Events.Application.Abstractions.Services;
+using Ya.Events.Application.Constants;
 using Ya.Events.Application.DTOs;
 using Ya.Events.Domain.Entities;
 using Ya.Events.Domain.Exceptions;
@@ -42,7 +43,7 @@ public class EventService : IEventService
 
     public async Task<Event?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var cacheKey = $"event:{id}";
+        var cacheKey = CacheKeys.Event(id);
 
         // Шаг 1: смотрим в кеш
         var cached = await _cache.GetAsync<Event>(cacheKey, ct);
@@ -56,32 +57,27 @@ public class EventService : IEventService
         if (@event is null) return null;
 
         // Шаг 3: кладём в кеш
-        await _cache.SetAsync(
-            cacheKey,
-            @event,
-            _eventByIdTtl,
-            ct);
+        await _cache.SetAsync(cacheKey, @event, _eventByIdTtl, ct);
 
         return @event;
     }
 
     public async Task<IReadOnlyList<Event>> GetTopEventsAsync(CancellationToken ct = default)
     {
-        const string cacheKey = "events:top10";
+        var cacheKey = CacheKeys.Top10Events;
 
+        // Шаг 1: смотрим в кеш
         var cached = await _cache.GetAsync<IReadOnlyList<Event>>(cacheKey, ct);
         if (cached is not null)
         {
             return cached;
         }
 
+        // Шаг 2: идём в базу
         var events = await _repository.GetTop10Async(ct);
 
-        await _cache.SetAsync(
-            cacheKey,
-            events,
-            _topEventsTtl,
-            ct);
+        // Шаг 3: кладём в кеш
+        await _cache.SetAsync(cacheKey, events, _topEventsTtl, ct);
 
         return events;
     }
@@ -99,7 +95,7 @@ public class EventService : IEventService
             throw new NotFoundException($"Событие с идентификатором '{id}' не найдено.");
 
         // Шаг 2. Активная инвалидация (удаление из кеша)
-        var cacheKey = $"event:{id}";
+        var cacheKey = CacheKeys.Event(id);
         await _cache.RemoveAsync(cacheKey, ct);
 
         return existing;
@@ -116,7 +112,7 @@ public class EventService : IEventService
         await _repository.DeleteAsync(id, ct);
 
         // Шаг 3. Активная инвалидация (удаление из кеша)
-        var cacheKey = $"event:{id}";
+        var cacheKey = CacheKeys.Event(id);
         await _cache.RemoveAsync(cacheKey, ct);
     }
 }
