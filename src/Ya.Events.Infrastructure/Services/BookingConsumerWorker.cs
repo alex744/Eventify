@@ -5,6 +5,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using Ya.Events.Application.Abstractions.Caching;
+using Ya.Events.Application.Constants;
 using Ya.Events.Infrastructure.Options;
 using Ya.Events.Infrastructure.Persistence;
 using Ya.Shared.Contracts;
@@ -92,6 +94,7 @@ internal sealed class BookingConsumerWorker : BackgroundService
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var cache = scope.ServiceProvider.GetRequiredService<ICache>();
 
             // 1. Проверяем, что событие существует
             var existingEvent = await db.Events.FirstOrDefaultAsync(e => e.Id == booking.EventId, stoppingToken);
@@ -116,6 +119,9 @@ internal sealed class BookingConsumerWorker : BackgroundService
 
             // 3. Сохраняем изменения события в базе данных
             await db.SaveChangesAsync(stoppingToken);
+
+            // 4. Инвалидируем кэш после изменения данных
+            await cache.RemoveAsync(CacheKeys.Event(booking.EventId), stoppingToken);
 
             _logger.LogInformation("Бронирование подтверждено для события с идентификатором '{EventId}'.", booking.EventId);
             consumer.StoreOffset(consumeResult);

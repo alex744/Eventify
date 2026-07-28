@@ -4,8 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using StackExchange.Redis;
 using System.Text;
+using Ya.Events.Application.Abstractions.Caching;
 using Ya.Events.Application.Abstractions.Persistence.Repositories;
+using Ya.Events.Infrastructure.Caching;
 using Ya.Events.Infrastructure.Options;
 using Ya.Events.Infrastructure.Persistence;
 using Ya.Events.Infrastructure.Repositories;
@@ -66,6 +69,31 @@ public static class DependencyInjectionExtensions
         // Сначала инициализация топика, потом подписчик
         services.AddHostedService<KafkaTopicInitializer>();
         services.AddHostedService<BookingConsumerWorker>();
+
+        // Redis connection multiplexer
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            var redisOptions = configuration
+                .GetSection(RedisOptions.SectionName)
+                .Get<RedisOptions>();
+
+            if (redisOptions is null)
+            {
+                throw new InvalidOperationException("Redis options are not configured.");
+            }
+
+            var options = new ConfigurationOptions
+            {
+                EndPoints = { redisOptions.ConnectionString },
+                ConnectTimeout = 3000,
+                AbortOnConnectFail = false,
+            };
+
+            return ConnectionMultiplexer.Connect(options);
+        });
+
+        services.AddSingleton<ICache, RedisCache>();
+        services.AddSingleton<ICacheTtlProvider, RedisCacheTtlProvider>();
 
         return services;
     }
