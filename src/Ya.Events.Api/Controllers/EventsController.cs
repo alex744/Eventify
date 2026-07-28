@@ -53,10 +53,24 @@ public class EventsController : ControllerBase
     }
 
     /// <summary>
+    /// Топ-10 самых популярных событий
+    /// GET /events/top
+    /// </summary>    
+    [HttpGet("top")]
+    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<EventResponse>))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
+    public async Task<ActionResult<IReadOnlyList<EventResponse>>> GetTopEventsAsync(CancellationToken ct = default)
+    {
+        var topEvents = await _eventService.GetTopEventsAsync(ct);
+        var response = topEvents.Select(e => e.ToResponse()).ToList();
+        return response;
+    }
+
+    /// <summary>
     /// Получить событие по id
     /// GET /events/{id}
     /// </summary>    
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(EventResponse))]
     [ProducesResponseType(StatusCodes.Status404NotFound, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
@@ -73,20 +87,6 @@ public class EventsController : ControllerBase
         }
 
         return entity.ToResponse();
-    }
-
-    /// <summary>
-    /// Топ-10 самых популярных событий
-    /// GET /events/top
-    /// </summary>    
-    [HttpGet("top")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(IReadOnlyList<EventResponse>))]
-    [ProducesResponseType(StatusCodes.Status500InternalServerError, Type = typeof(ProblemDetails))]
-    public async Task<ActionResult<IReadOnlyList<EventResponse>>> GetTopEventsAsync(CancellationToken ct = default)
-    {
-        var topEvents = await _eventService.GetTopEventsAsync(ct);
-        var response = topEvents.Select(e => e.ToResponse()).ToList();
-        return response;
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public class EventsController : ControllerBase
     /// PUT /events/{id}
     /// </summary>    
     [Authorize(Roles = "Admin")]
-    [HttpPut("{id}")]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(EventResponse))]
     [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
@@ -129,7 +129,7 @@ public class EventsController : ControllerBase
     /// DELETE /events/{id}
     /// </summary>    
     [Authorize(Roles = "Admin")]
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized, Type = typeof(ProblemDetails))]
     [ProducesResponseType(StatusCodes.Status403Forbidden, Type = typeof(ProblemDetails))]
