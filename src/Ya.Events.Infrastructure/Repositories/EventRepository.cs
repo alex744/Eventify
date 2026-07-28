@@ -64,7 +64,7 @@ public class EventRepository : IEventRepository
     {
         return await _context.Events
             .AsNoTracking()
-            .OrderByDescending(e => (e.TotalSeats - e.AvailableSeats) / e.TotalSeats)
+            .OrderByDescending(e => (double)(e.TotalSeats - e.AvailableSeats) / e.TotalSeats)
             .Take(10)
             .ToListAsync(ct);
     }
