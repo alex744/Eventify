@@ -4,6 +4,9 @@ using Ya.Events.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Конфигурация хоста
+builder.AddSerilog();
+
 // Добавление сервисов в контейнер.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

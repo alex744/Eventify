@@ -2,12 +2,21 @@
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Serilog;
+using Serilog.Formatting.Compact;
 using Ya.Events.Api.Middleware;
 
 namespace Ya.Events.Api;
 
 public static class DependencyInjectionExtensions
 {
+    public static void AddSerilog(this WebApplicationBuilder builder)
+    {
+        builder.Host.UseSerilog((ctx, cfg) =>
+            cfg.ReadFrom.Configuration(ctx.Configuration)
+               .WriteTo.Console(new CompactJsonFormatter()));
+    }
+
     public static IServiceCollection AddOpenTelemetry(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOpenTelemetry()
