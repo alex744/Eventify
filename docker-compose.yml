@@ -104,6 +104,7 @@ services:
       Jwt__Issuer: ${JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE}
       Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES}
+      Otlp__Endpoint: ${OTLP_ENDPOINT}
 
   events-api:
     build:
@@ -132,6 +133,7 @@ services:
       Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS}
       Kafka__ConsumerGroup: ${KAFKA_CONSUMER_GROUP}
       Redis__ConnectionString: ${REDIS_HOST}:${REDIS_PORT}
+      Otlp__Endpoint: ${OTLP_ENDPOINT}
 
   bookings-api:
     build:
@@ -157,6 +159,7 @@ services:
       Jwt__LifetimeMinutes: ${JWT_LIFETIME_MINUTES}
       Kafka__BootstrapServers: ${KAFKA_BOOTSTRAP_SERVERS}
       Kafka__GroupId: ${KAFKA_PRODUCER_GROUP}
+      Otlp__Endpoint: ${OTLP_ENDPOINT}
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -173,8 +176,41 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
 
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: eventapi-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.56
+    container_name: eventapi-jaeger
+    ports:
+      - "${JAEGER_UI_PORT}:16686"     # UI
+      - "${OTLP_ENDPOINT_PORT}:4317"  # OTLP gRPC
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: eventapi-grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   pgadmin_data:
   kafka_data:
   redis_data:
+  grafana-data:
