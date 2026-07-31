@@ -31,7 +31,9 @@
     <File Path="../.env" />
     <File Path="../.env.example" />
     <File Path="../docker-compose.yml" />
-    <File Path="../grafana-dashboard.json" />
+    <File Path="../grafana/dashboards/eventify-dashboard.json" />
+    <File Path="../grafana/provisioning/dashboards/dashboards.yml" />
+    <File Path="../grafana/provisioning/datasources/prometheus.yml" />
     <File Path="../prometheus.yml" />
     <File Path="../README.md" />
   </Folder>
