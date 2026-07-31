@@ -857,9 +857,23 @@ Authorization: Bearer <jwt-token>
 | **Jaeger** | Распределённая трассировка (приём трейсов по OTLP gRPC) | `jaegertracing/all-in-one:1.56` |
 | **Grafana** | Визуализация метрик Prometheus в дашбордах | `grafana/grafana:10.4.2` |
 
+Grafana использует **provisioning** — datasource и dashboard подхватываются автоматически из конфигов репозитория без ручного импорта.
+
 Каждый API-сервис экспортирует трейсы в Jaeger через OpenTelemetry Protocol (OTLP gRPC). Адрес коллектора передаётся через переменную окружения `Otlp__Endpoint` и задаётся в `.env` как `OTLP_ENDPOINT=http://jaeger:4317`.
 
 Метрики экспонируются каждым сервисом по пути `/metrics` на его рабочем порту `8080`. Конфигурация Prometheus находится в файле [`prometheus.yml`](prometheus.yml) в корне репозитория; он монтируется в контейнер как read-only.
+
+### Grafana provisioning
+
+При старте Grafana автоматически применяет конфигурацию из директории `grafana/provisioning/`:
+
+| Файл | Назначение |
+|---|---|
+| `grafana/provisioning/datasources/prometheus.yml` | Регистрирует Prometheus (`http://prometheus:9090`) как datasource с uid `prometheus` |
+| `grafana/provisioning/dashboards/dashboards.yml` | Указывает папку `/var/lib/grafana/dashboards` как источник dashboard-файлов |
+| `grafana-dashboard.json` | Dashboard с метриками ASP.NET Core и .NET runtime; монтируется в контейнер автоматически |
+
+После `docker compose up` Grafana открывается по адресу `http://localhost:3000` — datasource и dashboard уже настроены, ручной импорт не нужен.
 
 ### Запуск стека мониторинга
 
@@ -885,7 +899,7 @@ docker compose up -d prometheus jaeger grafana
 | Jaeger UI | `http://localhost:16686` | `JAEGER_UI_PORT=16686` |
 | Grafana | `http://localhost:3000` | `GRAFANA_PORT=3000` |
 
-Grafana запускается с учётными данными по умолчанию: логин `admin`, пароль `admin`. В production-среде замените пароль через переменную `GF_SECURITY_ADMIN_PASSWORD` в `docker-compose.yml`. Для подключения Grafana к Prometheus добавьте Data Source с URL `http://prometheus:9090`.
+Grafana запускается с учётными данными по умолчанию: логин `admin`, пароль `admin`. В production-среде замените пароль через переменную `GF_SECURITY_ADMIN_PASSWORD` в `docker-compose.yml`. Datasource и dashboard подключаются автоматически через provisioning — дополнительная настройка вручную не требуется.
 
 ## Технологии
 
@@ -900,4 +914,4 @@ Grafana запускается с учётными данными по умол�
 - OpenTelemetry
 - Prometheus
 - Jaeger
-- Grafana
+- Grafana (provisioning)
