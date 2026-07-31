@@ -845,6 +845,48 @@ Authorization: Bearer <jwt-token>
 - отсутствие прав доступа преобразуется в `403 Forbidden`;
 - превышение лимита бронирований преобразуется в `409 Conflict`.
 
+## Наблюдаемость
+
+### Инструменты
+
+В стек наблюдаемости входят три компонента:
+
+| Инструмент | Назначение | Образ |
+|---|---|---|
+| **Prometheus** | Сбор метрик с сервисов каждые 15 секунд | `prom/prometheus:v2.51.0` |
+| **Jaeger** | Распределённая трассировка (приём трейсов по OTLP gRPC) | `jaegertracing/all-in-one:1.56` |
+| **Grafana** | Визуализация метрик Prometheus в дашбордах | `grafana/grafana:10.4.2` |
+
+Каждый API-сервис экспортирует трейсы в Jaeger через OpenTelemetry Protocol (OTLP gRPC). Адрес коллектора передаётся через переменную окружения `Otlp__Endpoint` и задаётся в `.env` как `OTLP_ENDPOINT=http://jaeger:4317`.
+
+Метрики экспонируются каждым сервисом по пути `/metrics` на его рабочем порту `8080`. Конфигурация Prometheus находится в файле [`prometheus.yml`](prometheus.yml) в корне репозитория; он монтируется в контейнер как read-only.
+
+### Запуск стека мониторинга
+
+Prometheus, Jaeger и Grafana входят в основной `docker-compose.yml` и запускаются вместе с остальными сервисами:
+
+```bash
+docker compose up --build -d
+```
+
+Для запуска только стека наблюдаемости (без пересборки API):
+
+```bash
+docker compose up -d prometheus jaeger grafana
+```
+
+### Адреса UI
+
+Порты задаются в `.env` (см. `.env.example`). Значения по умолчанию:
+
+| Сервис | Адрес | Переменная окружения |
+|---|---|---|
+| Prometheus | `http://localhost:9090` | `PROMETHEUS_PORT=9090` |
+| Jaeger UI | `http://localhost:16686` | `JAEGER_UI_PORT=16686` |
+| Grafana | `http://localhost:3000` | `GRAFANA_PORT=3000` |
+
+Grafana запускается с учётными данными по умолчанию: логин `admin`, пароль `admin`. В production-среде замените пароль через переменную `GF_SECURITY_ADMIN_PASSWORD` в `docker-compose.yml`. Для подключения Grafana к Prometheus добавьте Data Source с URL `http://prometheus:9090`.
+
 ## Технологии
 
 - .NET 10
@@ -855,3 +897,7 @@ Authorization: Bearer <jwt-token>
 - xUnit 3
 - Moq
 - Testcontainers for .NET
+- OpenTelemetry
+- Prometheus
+- Jaeger
+- Grafana
